@@ -9,7 +9,9 @@ module.exports = {
     extend: {
       fontFamily: {
         playwrite: ['"Playwrite AU QLD"', "serif"],
-        winky: ['"Winky Rough"', "serif"]
+        winky: ['"Winky Rough"', "serif"],
+        intel: ['"Intel One Mono"', "Serif"],
+        lato: ['"Lato"', "Serif"],
       },
     },
   },
