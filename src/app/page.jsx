@@ -1,9 +1,9 @@
 "use client";
 
-import Navbar from "../components/Navbar.jsx";
-import Home from "../components/Home.jsx";
-import Login from "../components/LogIn.jsx";
-import SignUp from "../components/SignUp.jsx";
+import Navbar from "../components/Navbar";
+import Home from "../components/Home";
+import Login from "../components/LogIn";
+import SignUp from "../components/SignUp";
 import { useState } from "react";
 
 export default function Page() {

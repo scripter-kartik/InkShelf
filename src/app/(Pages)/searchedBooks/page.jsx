@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import Navbar from "../../../components/Navbar.jsx";
+import Navbar from "../../../components/Navbar";
 import { useRouter } from "next/navigation";
 
 export default function SearchedBooks() {
