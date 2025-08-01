@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <div className="relative w-screen min-h-[calc(100vh-64px)] overflow-hidden">
@@ -31,9 +33,11 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-          <button className="w-48 h-14 sm:h-16 bg-green-400 font-lato text-lg sm:text-xl rounded hover:bg-green-500 transition">
-            Start Reading
-          </button>
+          <Link href="/books">
+            <button className="w-48 h-14 sm:h-16 bg-green-400 font-lato text-lg sm:text-xl rounded hover:bg-green-500 transition">
+              Start Reading
+            </button>
+          </Link>
           <button className="w-48 h-14 sm:h-16 bg-green-400 font-lato text-lg sm:text-xl rounded hover:bg-green-500 transition">
             Start Writing
           </button>
