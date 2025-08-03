@@ -85,7 +85,6 @@ export default function Navbar({
           </div>
         </Link>
 
-        {/* Browse Dropdown */}
         <div className="relative" ref={browseRef}>
           <button
             className="font-winky text-xl font-semibold hidden lg:flex items-center gap-2"
@@ -116,7 +115,6 @@ export default function Navbar({
           )}
         </div>
 
-        {/* Search Input */}
         <div className="relative lg:flex rounded-[10px] text-black px-3 bg-white gap-1 w-80 h-12 items-center sm:hidden lg:mr-5 hidden border-2 border-gray-400">
           <img className="w-5 h-5" src="/search.png" alt="Search" />
           <input
@@ -169,9 +167,11 @@ export default function Navbar({
             Login
           </button>
         </div>
-        <button>
-          <img className="w-8 h-8 lg:hidden" src="/search.png" alt="" />
-        </button>
+        <Link href="/smallSearchedBooks">
+          <button>
+            <img className="w-8 h-8 lg:hidden" src="/search.png" alt="" />
+          </button>
+        </Link>
       </div>
     </div>
   );

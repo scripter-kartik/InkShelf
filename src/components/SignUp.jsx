@@ -1,6 +1,6 @@
 export default function SignUp({ onClose }) {
   return (
-    <div className="w-[380px] h-[600px] bg-white relative">
+    <div className="w-[340px] h-[570px] sm:w-[380px] sm:h-[600px] rounded bg-white relative">
       <img
         onClick={onClose}
         className="absolute top-3 right-3 cursor-pointer"

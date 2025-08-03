@@ -1,6 +1,6 @@
 export default function LogIn({ onClose }) {
   return (
-    <div className="w-[380px] h-[600px] relative bg-white">
+    <div className="w-[340px] h-[570px] sm:w-[380px] sm:h-[600px] relative bg-white rounded">
       <img
         onClick={onClose}
         className="absolute top-3 right-3 cursor-pointer"
