@@ -1,6 +1,7 @@
 import User from "../../models/User";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 mongoose
   .connect(process.env.NEXT_PUBLIC_MONGO_URI)
