@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "../../../components/Navbar";
 import Skeleton from "../../../components/Skeleton";
+import { fetchBooksByCategories } from "../../../components/fetchBooksByCategories";
 
 const categories = [
   { label: "Fantasy", key: "fantasy" },
@@ -23,12 +24,6 @@ const categories = [
   { label: "Psychology", key: "psychology" },
   { label: "Philosophy", key: "philosophy" },
   { label: "Business & Economics", key: "business" },
-  { label: "Health & Wellness", key: "health" },
-  { label: "True Crime", key: "true_crime" },
-  { label: "Cookbooks & Food", key: "cookbooks" },
-  { label: "Art & Photography", key: "art" },
-  { label: "Travel & Adventure", key: "travel" },
-  { label: "Religion & Spirituality", key: "religion" },
 ];
 
 export default function Page() {
@@ -39,15 +34,7 @@ export default function Page() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const result = await Promise.all(
-          categories.map(async ({ label, key }) => {
-            const res = await fetch(
-              `https://openlibrary.org/subjects/${key}.json?limit=30`
-            );
-            const data = await res.json();
-            return { category: label, books: data.works || [] };
-          })
-        );
+        const result = await fetchBooksByCategories(categories);
         setBooksCollection(result);
       } catch (error) {
         console.log(error.message);
@@ -62,7 +49,7 @@ export default function Page() {
   return (
     <div className="bg-gray-100 min-h-screen w-[calc(100vw - 16px)] overflow-x-hidden">
       <Navbar query={query} setQuery={setQuery} />
-      <div className="p-6 space-y-12">
+      <div className="p-2 md:p-6 space-y-12">
         {loading
           ? categories.map((cat, idx) => (
               <div key={idx}>
@@ -86,8 +73,8 @@ export default function Page() {
               </div>
             ))
           : booksCollection.map(({ category, books }, idx) => (
-              <div key={idx}>
-                <h2 className="text-3xl font-semibold text-green-600 mb-4">
+              <div key={idx} className=" bg-green-400 rounded-lg p-4">
+                <h2 className="text-3xl font-extrabold text-black font-winky mb-4">
                   {category}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

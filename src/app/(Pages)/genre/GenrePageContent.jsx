@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Navbar from "../../../components/Navbar";
 import Skeleton from "../../../components/Skeleton";
+import { fetchBooksByGenre } from "../../../components/fetchBooksByGenre";
 
 export default function GenrePageContent() {
   const searchParams = useSearchParams();
@@ -17,17 +18,9 @@ export default function GenrePageContent() {
     if (!genre) return;
     const fetchBooks = async () => {
       setLoading(true);
-      try {
-        const res = await fetch(
-          `https://openlibrary.org/subjects/${genre}.json?limit=1000`
-        );
-        const data = await res.json();
-        setBooks(data.works || []);
-      } catch (err) {
-        console.error("Failed to fetch books:", err);
-      } finally {
-        setLoading(false);
-      }
+      const booksData = await fetchBooksByGenre(genre);
+      setBooks(booksData);
+      setLoading(false);
     };
     fetchBooks();
   }, [genre]);
@@ -39,8 +32,8 @@ export default function GenrePageContent() {
   return (
     <div className="bg-gray-100 min-h-screen w-[calc(100vw - 16px)] overflow-x-hidden">
       <Navbar query={query} setQuery={setQuery} />
-      <div className="p-6">
-        <h1 className="text-3xl font-bold mb-4 text-green-600 capitalize">
+      <div className="p-4 bg-green-400 rounded-md m-2 md:m-5">
+        <h1 className="text-3xl font-extrabold font-winky mb-4 text-black capitalize">
           {genre?.replace(/_/g, " ")}
         </h1>
 

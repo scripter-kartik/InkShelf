@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Navbar from "../../../components/Navbar";
 import { useRouter } from "next/navigation";
+import { fetchBooksBySearch } from "../../../components/fetchBooksBySearch";
 
 export default function SearchedBooks() {
   const [query, setQuery] = useState("");
@@ -17,17 +18,8 @@ export default function SearchedBooks() {
 
     setQuery(searchTerm);
     const fetchBooks = async () => {
-      try {
-        const res = await fetch(
-          `https://openlibrary.org/search.json?q=${encodeURIComponent(
-            searchTerm
-          )}&limit=50`
-        );
-        const data = await res.json();
-        setBooks(data.docs);
-      } catch (err) {
-        console.error("Failed to fetch books:", err);
-      }
+      const results = await fetchBooksBySearch(searchTerm);
+      setBooks(results);
     };
 
     fetchBooks();

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Skeleton from "../../../components/Skeleton";
 import Login from "../../../components/LogIn";
 import SignUp from "../../../components/SignUp";
+import { fetchSmallBooksByCategory } from "../../../components/fetchSmallBooksByCategory";
 
 const genres = [
   "Fantasy",
@@ -109,17 +110,9 @@ export default function SmallSearchedBooks() {
   }, [query]);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const loadBooks = async () => {
       try {
-        const result = await Promise.all(
-          categories.map(async ({ label, key }) => {
-            const res = await fetch(
-              `https://openlibrary.org/subjects/${key}.json?limit=30`
-            );
-            const data = await res.json();
-            return { category: label, books: data.works || [] };
-          })
-        );
+        const result = await fetchSmallBooksByCategory(categories);
         setBooksCollection(result);
       } catch {
         setFetchError("Failed to load books. Please try again.");
@@ -127,7 +120,7 @@ export default function SmallSearchedBooks() {
         setLoading(false);
       }
     };
-    fetchData();
+    loadBooks();
   }, []);
 
   useEffect(() => {
