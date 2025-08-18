@@ -38,12 +38,6 @@ const categories = [
   { label: "Humor", key: "humor" },
   { label: "Technology", key: "technology" },
   { label: "Engineering", key: "engineering" },
-  { label: "Mathematics", key: "mathematics" },
-  { label: "Music", key: "music" },
-  { label: "Animals & Nature", key: "animals" },
-  { label: "Gardening", key: "gardening" },
-  { label: "Sports", key: "sports" },
-  { label: "Language & Linguistics", key: "language" },
 ];
 
 const PAGE_SIZE = 3;
