@@ -55,6 +55,8 @@ const categories = [
   { label: "Business & Economics", key: "business" },
 ];
 
+const BATCH_SIZE = 3;
+
 export default function SmallSearchedBooks() {
   const [query, setQuery] = useState("");
   const [isActive, setIsActive] = useState(false);
@@ -67,12 +69,17 @@ export default function SmallSearchedBooks() {
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+
+  const loadRef = useRef(null);
   const lastScrollY = useRef(0);
   const browseRef = useRef();
   const suggestionRef = useRef();
   const buttonRef = useRef();
   const router = useRouter();
 
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (!suggestionRef.current?.contains(event.target))
@@ -84,6 +91,7 @@ export default function SmallSearchedBooks() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Search suggestion API call
   useEffect(() => {
     if (query.length < 2) {
       setSuggestions([]);
@@ -100,7 +108,7 @@ export default function SmallSearchedBooks() {
         );
         const data = await res.json();
         setSuggestions(data.docs.slice(0, 5).map((doc) => doc.title));
-      } catch (error) {}
+      } catch {}
     };
     const debounce = setTimeout(fetchSuggestions, 300);
     return () => {
@@ -109,20 +117,7 @@ export default function SmallSearchedBooks() {
     };
   }, [query]);
 
-  useEffect(() => {
-    const loadBooks = async () => {
-      try {
-        const result = await fetchSmallBooksByCategory(categories);
-        setBooksCollection(result);
-      } catch {
-        setFetchError("Failed to load books. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadBooks();
-  }, []);
-
+  // Scroll to hide/show navbar
   useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY;
@@ -132,6 +127,43 @@ export default function SmallSearchedBooks() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Load book categories in batches
+  const loadBooks = async () => {
+    if (currentIndex >= categories.length) return;
+    setIsFetchingMore(true);
+    try {
+      const batch = categories.slice(currentIndex, currentIndex + BATCH_SIZE);
+      const result = await fetchSmallBooksByCategory(batch);
+      setBooksCollection((prev) => [...prev, ...result]);
+      setCurrentIndex((prev) => prev + BATCH_SIZE);
+    } catch {
+      setFetchError("Failed to load books. Please try again.");
+    } finally {
+      setIsFetchingMore(false);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBooks();
+  }, []);
+
+  // Intersection Observer to trigger loading
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isFetchingMore) {
+          loadBooks();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    if (loadRef.current) observer.observe(loadRef.current);
+    return () => {
+      if (loadRef.current) observer.unobserve(loadRef.current);
+    };
+  }, [loadRef.current, isFetchingMore]);
 
   useEffect(() => {
     if (showLogin || showSignup) setIsActive(false);
@@ -144,6 +176,7 @@ export default function SmallSearchedBooks() {
 
   return (
     <div>
+      {/* NAVBAR */}
       <div
         className={`flex items-center justify-between gap-5 p-3 fixed top-0 left-0 right-0 z-50 bg-white transition-transform duration-300 ${
           showNavbar ? "translate-y-0" : "-translate-y-full"
@@ -186,6 +219,7 @@ export default function SmallSearchedBooks() {
             </ul>
           )}
         </div>
+
         <div className="flex items-center sm:gap-7 gap-4">
           <div className="relative" ref={browseRef}>
             <div
@@ -224,7 +258,10 @@ export default function SmallSearchedBooks() {
           />
         </div>
       </div>
+
       <hr className="text-gray-600 mt-[64px]" />
+
+      {/* BURGER MENU DROPDOWN */}
       {isActive && (
         <div
           ref={buttonRef}
@@ -242,13 +279,15 @@ export default function SmallSearchedBooks() {
           </div>
         </div>
       )}
+
+      {/* BOOK LIST */}
       <div className="p-6 space-y-12 mt-10">
         {fetchError && <p className="text-center text-red-500">{fetchError}</p>}
-        {loading
-          ? categories.map((cat, idx) => (
+        {loading && booksCollection.length === 0
+          ? Array.from({ length: BATCH_SIZE }).map((_, idx) => (
               <div key={idx}>
                 <h2 className="text-3xl font-semibold text-green-600 mb-4">
-                  {cat.label}
+                  Loading...
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {Array.from({ length: 6 }).map((_, i) => (
@@ -285,7 +324,9 @@ export default function SmallSearchedBooks() {
                         />
                       ) : (
                         <div className="w-full h-48 bg-gray-300 flex items-center justify-center rounded">
-                          <span className="text-gray-500">No Cover</span>
+                          <span className="text-gray-500 text-sm">
+                            No Cover
+                          </span>
                         </div>
                       )}
                       <h3 className="mt-2 font-medium text-sm line-clamp-2">
@@ -307,7 +348,14 @@ export default function SmallSearchedBooks() {
                 </div>
               </div>
             ))}
+        {/* Infinite Scroll Loader Trigger */}
+        <div ref={loadRef} className="h-10" />
+        {isFetchingMore && (
+          <p className="text-center text-gray-400 text-sm">Loading more...</p>
+        )}
       </div>
+
+      {/* LOGIN/SIGNUP OVERLAY */}
       {(showLogin || showSignup) && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
           {showLogin && <Login onClose={closeAll} />}
