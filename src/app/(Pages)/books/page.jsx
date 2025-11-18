@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import Navbar from "../../../components/Navbar";
-import Skeleton from "../../../components/Skeleton";
-import { fetchBooksByCategories } from "../../../components/fetchBooksByCategories";
+import Navbar from "../../components/Navbar";
+import Skeleton from "../../components/Skeleton";
+import { fetchBooksByCategories } from "../../components/fetchBooksByCategories";
 
 const categories = [
   { label: "Fantasy", key: "fantasy" },

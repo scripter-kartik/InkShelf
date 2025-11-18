@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import Navbar from "../../../components/Navbar";
+import Navbar from "../../components/Navbar";
 import { useRouter } from "next/navigation";
-import { fetchBooksBySearch } from "../../../components/fetchBooksBySearch";
+import { fetchBooksBySearch } from "../../components/fetchBooksBySearch";
 
 export default function SearchedBooks() {
   const [query, setQuery] = useState("");
