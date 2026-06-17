@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSession, signIn, signOut } from "next-auth/react"
 
 const genres = [
   "Fantasy",
@@ -40,6 +41,7 @@ export default function Navbar({
   const [browseOpen, setBrowseOpen] = useState(false);
   const router = useRouter();
   const browseRef = useRef(null);
+  const { data: session } = useSession();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -154,19 +156,36 @@ export default function Navbar({
           <img className="w-4 h-4" src="/downArrow.png" alt="" />
         </div>
         <div className="sm:flex items-center gap-10 hidden">
-          <button
-            onClick={onSignUpClick}
-            className="font-winky text-xl font-semibold"
-          >
-            SignUp
-          </button>
-          <button
-            onClick={onLoginClick}
-            className="font-winky text-xl font-semibold"
-          >
-            Login
-          </button>
+          {session?.user ? (
+            <div className="flex items-center gap-3">
+              <img
+                src={session?.user?.image || "/default-avatar.png"}
+                alt="User"
+                className="w-10 h-10 rounded-full border cursor-pointer object-cover"
+                onClick={() => signOut()}
+              />
+              <span className="font-winky text-xl font-semibold cursor-pointer" onClick={() => signOut()}>
+                Logout
+              </span>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={onSignUpClick}
+                className="font-winky text-xl font-semibold"
+              >
+                SignUp
+              </button>
+              <button
+                onClick={onLoginClick}
+                className="font-winky text-xl font-semibold"
+              >
+                Login
+              </button>
+            </>
+          )}
         </div>
+
         <Link href="/smallSearchedBooks">
           <button>
             <img className="w-8 h-8 lg:hidden" src="/search.png" alt="" />
