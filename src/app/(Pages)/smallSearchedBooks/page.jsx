@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Skeleton from "../../components/Skeleton";
 import Login from "../../components/LogIn";
 import SignUp from "../../components/SignUp";
-import { fetchSmallBooksByCategory } from "../../components/fetchSmallBooksByCategory";
+import { fetchBooksByCategories as fetchSmallBooksByCategory } from "@/lib/openlibrary";
 const genres = [
     "Fantasy",
     "Science Fiction",
@@ -119,7 +119,7 @@ export default function SmallSearchedBooks() {
         setIsFetchingMore(true);
         try {
             const batch = categories.slice(currentIndex, currentIndex + BATCH_SIZE);
-            const result = await fetchSmallBooksByCategory(batch);
+            const result = await fetchSmallBooksByCategory(batch, 30);
             setBooksCollection((prev) => [...prev, ...result]);
             setCurrentIndex((prev) => prev + BATCH_SIZE);
         }

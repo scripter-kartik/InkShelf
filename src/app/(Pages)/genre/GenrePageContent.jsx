@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import Navbar from "../../components/Navbar";
 import Skeleton from "../../components/Skeleton";
 import BookCard from "@/components/BookCard";
-import { fetchBooksByGenre } from "../../components/fetchBooksByGenre";
+import { fetchBooksByGenre } from "@/lib/openlibrary";
 const cardVariants = {
     hidden: { opacity: 0, y: 24 },
     show: (i) => ({

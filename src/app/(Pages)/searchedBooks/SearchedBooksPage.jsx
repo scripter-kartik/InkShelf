@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Navbar from "../../components/Navbar";
 import BookCard from "@/components/BookCard";
-import { fetchBooksBySearch } from "../../components/fetchBooksBySearch";
+import { fetchBooksBySearch } from "@/lib/openlibrary";
 const cardVariants = {
     hidden: { opacity: 0, y: 24 },
     show: (i) => ({

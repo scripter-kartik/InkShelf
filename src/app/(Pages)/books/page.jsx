@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "../../components/Navbar";
 import Skeleton from "../../components/Skeleton";
 import BookCard from "@/components/BookCard";
-import { fetchBooksByCategories } from "../../components/fetchBooksByCategories";
+import { fetchBooksByCategories } from "@/lib/openlibrary";
 const categories = [
     { label: "Fantasy", key: "fantasy" },
     { label: "Science Fiction", key: "science_fiction" },
