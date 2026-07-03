@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Skeleton from "../../../components/Skeleton";
-import Login from "../../../components/LogIn";
-import SignUp from "../../../components/SignUp";
-import { fetchSmallBooksByCategory } from "../../../components/fetchSmallBooksByCategory";
+import Skeleton from "../../components/Skeleton";
+import Login from "../../components/LogIn";
+import SignUp from "../../components/SignUp";
+import { fetchSmallBooksByCategory } from "../../components/fetchSmallBooksByCategory";
 const genres = [
     "Fantasy",
     "Science Fiction",
