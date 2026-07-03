@@ -1,19 +1,9 @@
 import Link from "next/link";
-
 export default function Home() {
-  return (
-    <div className="relative w-screen min-h-[calc(100vh-64px)] overflow-hidden">
-      <img
-        className="absolute top-0 left-0 h-[calc(100vh-64px)] w-auto object-contain z-0 hidden 2xl:block"
-        src="/Bird.png"
-        alt="Left Decorative Bird"
-      />
+    return (<div className="relative w-screen min-h-[calc(100vh-64px)] overflow-hidden">
+      <img className="absolute top-0 left-0 h-[calc(100vh-64px)] w-auto object-contain z-0 hidden 2xl:block" src="/Bird.png" alt="Left Decorative Bird"/>
 
-      <img
-        className="absolute top-0 right-0 h-[calc(100vh-64px)] w-auto object-cover z-0"
-        src="/Subtract.png"
-        alt="Right Decorative Blob"
-      />
+      <img className="absolute top-0 right-0 h-[calc(100vh-64px)] w-auto object-cover z-0" src="/Subtract.png" alt="Right Decorative Blob"/>
 
       <div className="flex flex-col justify-center items-center gap-12 px-4 text-center h-[calc(100vh-64px)] relative z-10 max-w-6xl mx-auto">
         <h1 className="lg:text-green-400 bg-gradient-to-r from-green-400 to-black bg-clip-text text-transparent font-lato font-extrabold text-5xl sm:text-6xl md:text-7xl">
@@ -43,6 +33,5 @@ export default function Home() {
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>);
 }
