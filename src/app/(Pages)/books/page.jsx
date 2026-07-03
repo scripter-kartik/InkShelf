@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "../../components/Navbar";
 import Skeleton from "../../components/Skeleton";
+import BookCard from "@/components/BookCard";
 import { fetchBooksByCategories } from "../../components/fetchBooksByCategories";
 const categories = [
     { label: "Fantasy", key: "fantasy" },
@@ -38,9 +40,20 @@ const categories = [
     { label: "Engineering", key: "engineering" },
 ];
 const PAGE_SIZE = 3;
+const sectionVariants = {
+    hidden: { opacity: 0, y: 32 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } },
+};
+const cardVariants = {
+    hidden: { opacity: 0, y: 24 },
+    show: (i) => ({
+        opacity: 1,
+        y: 0,
+        transition: { duration: 0.45, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] },
+    }),
+};
 export default function Page() {
     const [booksCollection, setBooksCollection] = useState([]);
-    const [query, setQuery] = useState("");
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(0);
     const observerRef = useRef();
@@ -84,42 +97,28 @@ export default function Page() {
         if (node)
             observerRef.current.observe(node);
     }, [loading]);
-    return (<div className="bg-gray-100 min-h-screen w-[calc(100vw - 16px)] overflow-x-hidden">
-      <Navbar query={query} setQuery={setQuery}/>
-      <div className="p-2 md:p-6 space-y-12">
+    return (<div className="min-h-screen bg-gray-50 dark:bg-gray-950 overflow-x-hidden">
+      <Navbar />
+      <div className="px-3 md:px-6 py-6 space-y-10 max-w-[1600px] mx-auto">
         {booksCollection.map(({ category, books }, idx) => {
             const isLast = idx === booksCollection.length - 1;
-            return (<div key={`${category}-${idx}`} ref={isLast ? lastElementRef : null} className="bg-green-400 rounded-lg p-4">
-              <h2 className="text-3xl font-extrabold text-black font-winky mb-4">
+            return (<motion.div key={`${category}-${idx}`} ref={isLast ? lastElementRef : null} variants={sectionVariants} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-60px" }} className="bg-green-400 dark:bg-green-900/50 rounded-2xl p-4 md:p-6">
+              <h2 className="text-2xl md:text-3xl font-extrabold text-black dark:text-white font-winky mb-5">
                 {category}
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {books.map((book) => (<div key={book.key} className="bg-white rounded shadow-md hover:shadow-xl transition-shadow duration-300 p-3">
-                    {book.cover_id ? (<img src={`https://covers.openlibrary.org/b/id/${book.cover_id}-M.jpg`} alt={book.title} className="w-full h-48 object-cover rounded"/>) : (<div className="w-full h-48 bg-gray-300 flex items-center justify-center rounded">
-                        <span className="text-gray-500">No Cover</span>
-                      </div>)}
-                    <h3 className="mt-2 font-medium text-sm line-clamp-2">
-                      {book.title}
-                    </h3>
-                    <p className="text-xs text-gray-600">
-                      Author: {book.authors?.[0]?.name || "Unknown"}
-                    </p>
-                    <a href={`https://openlibrary.org${book.key}`} target="_blank" rel="noopener noreferrer" className="text-sm text-green-600 hover:underline mt-1 inline-block">
-                      Read Book
-                    </a>
-                  </div>))}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
+                {books.map((book, i) => (<motion.div key={book.key} custom={i} variants={cardVariants} initial="hidden" whileInView="show" viewport={{ once: true }}>
+                    <BookCard book={book} />
+                  </motion.div>))}
               </div>
-            </div>);
+            </motion.div>);
         })}
-
-        {loading && (<div className="space-y-12">
-            {Array.from({ length: PAGE_SIZE }).map((_, idx) => (<div key={idx}>
-                <h2 className="text-3xl font-semibold text-green-600 mb-4">
-                  Loading...
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {Array.from({ length: 6 }).map((_, i) => (<div key={i} className="bg-white rounded shadow-md p-3 animate-pulse">
-                      <Skeleton height="h-48" rounded="rounded"/>
+        {loading && (<div className="space-y-10">
+            {Array.from({ length: PAGE_SIZE }).map((_, idx) => (<div key={idx} className="bg-green-400/30 dark:bg-green-900/20 rounded-2xl p-4 md:p-6">
+                <div className="h-8 w-48 bg-green-300/50 dark:bg-green-800/50 rounded animate-pulse mb-5"/>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
+                  {Array.from({ length: 6 }).map((_, i) => (<div key={i} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-3 animate-pulse">
+                      <Skeleton height="h-48" rounded="rounded-lg"/>
                       <div className="mt-2 space-y-2">
                         <Skeleton width="w-3/4"/>
                         <Skeleton width="w-1/2"/>

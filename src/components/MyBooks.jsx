@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { Heart, Trash2, Star } from "lucide-react";
 import Navbar from "@/app/components/Navbar";
@@ -70,7 +71,7 @@ export default function MyBooks({ mode }) {
               </div>)}
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {visible.map((item) => (<div key={item.bookKey} className="group relative rounded-lg bg-white p-3 shadow-md dark:bg-gray-800">
+              {visible.map((item, i) => (<motion.div key={item.bookKey} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] }} whileHover={{ y: -4 }} className="group relative rounded-xl bg-white p-3 shadow-md dark:bg-gray-800 hover:shadow-xl transition-shadow duration-300">
                   <Link href={`/books/${item.bookKey}`}>
                     {coverUrl(item.coverId) ? (<img src={coverUrl(item.coverId)} alt={`Cover of ${item.title}`} className="h-48 w-full rounded object-cover"/>) : (<div className="flex h-48 w-full items-center justify-center rounded bg-gray-200 dark:bg-gray-700">
                         <span className="text-sm text-gray-500">No Cover</span>
@@ -117,7 +118,7 @@ export default function MyBooks({ mode }) {
                         &ldquo;{item.notes}&rdquo;
                       </p>
                     </div>)}
-                </div>))}
+                </motion.div>))}
             </div>
           </>)}
       </div>
