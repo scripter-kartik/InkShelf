@@ -37,11 +37,13 @@ describe("MyBooks — shelf mode", () => {
         render(<MyBooks mode="shelf"/>);
         expect(screen.getByText(/log in to see your saved books/i)).toBeInTheDocument();
     });
-    it("shows loading text while fetching", () => {
+    it("shows loading skeleton while fetching", () => {
         useSession.mockReturnValue({ status: "authenticated" });
         mockFetch.mockReturnValue(new Promise(() => { }));
         render(<MyBooks mode="shelf"/>);
-        expect(screen.getByText(/loading/i)).toBeInTheDocument();
+        // Loading state renders skeleton cards with animate-pulse, not a text node
+        const skeletons = document.querySelectorAll(".animate-pulse");
+        expect(skeletons.length).toBeGreaterThan(0);
     });
     it("shows DB-missing message on 503 response", async () => {
         useSession.mockReturnValue({ status: "authenticated" });
@@ -130,7 +132,7 @@ describe("MyBooks — shelf mode", () => {
             expect(screen.queryByText("Dune")).not.toBeInTheDocument();
         });
         expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("bookKey=OL45804W"), expect.objectContaining({ method: "DELETE" }));
-        expect(mockToast).toHaveBeenCalledWith("Removed", "success");
+        expect(mockToast).toHaveBeenCalledWith("Removed from shelf", "success");
     });
 });
 describe("MyBooks — favorites mode", () => {

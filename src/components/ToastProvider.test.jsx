@@ -1,6 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import { ToastProvider, useToast } from "@/components/ToastProvider";
+
+// Mock framer-motion so AnimatePresence removes children immediately on exit
+// (no CSS transition delay) making fake-timer-based dismissal tests reliable.
+vi.mock("framer-motion", () => {
+    const React = require("react");
+    return {
+        motion: new Proxy({}, {
+            get: (_, tag) => React.forwardRef((props, ref) => {
+                const { children, initial, animate, exit, transition, whileHover, whileTap, layout, ...rest } = props;
+                return React.createElement(tag === "default" ? "div" : tag, { ...rest, ref }, children);
+            }),
+        }),
+        AnimatePresence: ({ children }) => children,
+    };
+});
+
 function ToastTrigger({ message, type }) {
     const { toast } = useToast();
     return <button onClick={() => toast(message, type)}>Show toast</button>;
@@ -33,11 +49,11 @@ describe("ToastProvider", () => {
         <ToastTrigger message="Temporary message" type="info"/>
       </ToastProvider>);
         await act(async () => {
-            screen.getByRole("button").click();
+            screen.getByRole("button", { name: /show toast/i }).click();
         });
         expect(screen.getByText("Temporary message")).toBeInTheDocument();
         await act(async () => {
-            vi.advanceTimersByTime(4000);
+            vi.runAllTimers();
         });
         expect(screen.queryByText("Temporary message")).not.toBeInTheDocument();
     });

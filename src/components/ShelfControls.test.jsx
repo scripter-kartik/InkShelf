@@ -141,6 +141,6 @@ describe("ShelfControls", () => {
         await waitFor(() => {
             expect(mockFetch).toHaveBeenCalledWith("/api/shelf", expect.objectContaining({ method: "POST" }));
         });
-        expect(mockToast).toHaveBeenCalledWith("Added to favorites", "success");
+        expect(mockToast).toHaveBeenCalledWith("❤️ Added to favorites", "success");
     });
 });

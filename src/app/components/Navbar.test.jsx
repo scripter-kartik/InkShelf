@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import Navbar from "@/app/components/Navbar";
 vi.mock("next/navigation", () => ({
     useRouter: vi.fn(),
+    usePathname: vi.fn(() => "/"),
 }));
 vi.mock("next-auth/react", () => ({
     useSession: vi.fn(),
