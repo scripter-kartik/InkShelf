@@ -7,8 +7,11 @@ import {
   X, Maximize2, Minimize2, Eye, EyeOff, Calendar, Hash, Globe, BookMarked
 } from "lucide-react";
 import gsap from "gsap";
+import dynamic from "next/dynamic";
 import ShelfControls from "@/components/ShelfControls";
 import { coverUrl } from "@/lib/openlibrary";
+
+const EpubReaderComponent = dynamic(() => import("@/components/EpubReaderComponent"), { ssr: false });
 
 export default function BookDetailClient({ book, cover }) {
   const [localBook, setLocalBook] = useState(book);
@@ -20,10 +23,52 @@ export default function BookDetailClient({ book, cover }) {
   const coverRef = useRef(null);
   const contentRef = useRef(null);
 
-  const canEmbed = localBook?.embeddable === true;
-  const embedUrl = canEmbed
-    ? `https://books.google.com/books?id=${localBook.id}&lpg=PP1&pg=PP1&output=embed`
-    : null;
+  const [iaId, setIaId] = useState(null);
+  const [iaLoading, setIaLoading] = useState(false);
+  const [epubUrl, setEpubUrl] = useState(null);
+  const [gutenbergUrl, setGutenbergUrl] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const handleEpubUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (epubUrl && epubUrl.startsWith('blob:')) URL.revokeObjectURL(epubUrl);
+      const url = URL.createObjectURL(file);
+      setEpubUrl(url);
+      setShowReader(true);
+      setIframeLoaded(true); // Treat epub as immediately ready
+    }
+  };
+
+  useEffect(() => {
+    if (!book.title) return;
+    let cancelled = false;
+    setIaLoading(true);
+
+    fetch(`/api/book-sources?title=${encodeURIComponent(book.title)}&author=${encodeURIComponent(book.author || "")}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.iaId) setIaId(data.iaId);
+        if (data.epubUrl) setGutenbergUrl(data.epubUrl);
+      })
+      .catch(() => {}) // silently fail — user can still upload EPUB
+      .finally(() => {
+        if (!cancelled) setIaLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [book.title, book.author]);
+
+  const finalEpubUrl = epubUrl || gutenbergUrl;
+  const canEmbed = localBook?.embeddable === true || !!iaId || !!gutenbergUrl;
+  const embedUrl = iaId 
+    ? `https://archive.org/embed/${iaId}?ui=embed` 
+    : (localBook?.embeddable === true 
+        ? `https://books.google.com/books?id=${localBook.id}&lpg=PP1&pg=PP1&output=embed` 
+        : null);
 
   useEffect(() => {
     if (book.title === "Fallback Offline Book") {
@@ -164,10 +209,16 @@ export default function BookDetailClient({ book, cover }) {
 
               <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold ${canEmbed
                 ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                : iaLoading
+                ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                 : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"}`}>
-                {canEmbed
-                  ? <><Eye className="w-3.5 h-3.5" /> Full preview available</>
-                  : <><EyeOff className="w-3.5 h-3.5" /> No inline preview</>}
+                {iaLoading ? (
+                  <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Checking availability...</>
+                ) : canEmbed ? (
+                  <><Eye className="w-3.5 h-3.5" /> Full preview available</>
+                ) : (
+                  <><EyeOff className="w-3.5 h-3.5" /> No inline preview</>
+                )}
               </div>
             </div>
 
@@ -186,15 +237,45 @@ export default function BookDetailClient({ book, cover }) {
               </div>
 
               <div className="flex flex-wrap gap-3 pt-6">
+                <input
+                  type="file"
+                  accept=".epub"
+                  ref={fileInputRef}
+                  onChange={handleEpubUpload}
+                  className="hidden"
+                />
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => { setIframeLoaded(false); setShowReader(true); }}
-                  className="inline-flex items-center gap-2 rounded-full bg-green-500 px-6 py-3 font-semibold text-black hover:bg-green-600 shadow-lg shadow-green-500/25 transition-colors"
+                  onClick={() => {
+                    if (finalEpubUrl) {
+                      setShowReader(true);
+                    } else if (canEmbed) {
+                      setIframeLoaded(false);
+                      setShowReader(true);
+                    } else {
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  disabled={iaLoading}
+                  className={`inline-flex items-center gap-2 rounded-full px-6 py-3 font-semibold text-black shadow-lg shadow-green-500/25 transition-colors ${
+                    iaLoading ? "bg-gray-400 cursor-not-allowed opacity-70" : "bg-green-500 hover:bg-green-600"
+                  }`}
                 >
-                  <BookOpen className="h-5 w-5" />
-                  Read on InkShelf
+                  {iaLoading ? <RefreshCw className="h-5 w-5 animate-spin" /> : <BookOpen className="h-5 w-5" />}
+                  {finalEpubUrl ? (epubUrl ? "Continue Reading EPUB" : "Read Full Book for Free") : (canEmbed ? "Read on InkShelf" : "Upload EPUB to Read")}
                 </motion.button>
+                
+                {canEmbed && !epubUrl && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 rounded-full border-2 border-gray-400 px-5 py-2.5 font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800 transition-colors text-sm"
+                  >
+                    Upload Own EPUB
+                  </motion.button>
+                )}
 
                 <motion.a
                   whileHover={{ scale: 1.05 }}
@@ -285,7 +366,9 @@ export default function BookDetailClient({ book, cover }) {
               </div>
 
               <div className="flex-1 relative overflow-hidden">
-                {canEmbed ? (
+                {finalEpubUrl ? (
+                  <EpubReaderComponent url={finalEpubUrl} title={localBook.title} />
+                ) : canEmbed ? (
                   <>
                     {!iframeLoaded && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white dark:bg-gray-900 z-10">
@@ -311,30 +394,32 @@ export default function BookDetailClient({ book, cover }) {
                       Preview Not Available on InkShelf
                     </h4>
                     <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md font-lato leading-relaxed">
-                      The publisher has not granted Google Books permission to display an inline preview of <strong>{localBook.title}</strong>.
-                      You can still read it on Google Play Books using the button below.
+                      This book does not have an open access preview. You can upload an EPUB file to read it directly on InkShelf.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3 items-center">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => {
+                          setShowReader(false);
+                          setTimeout(() => fileInputRef.current?.click(), 300);
+                        }}
+                        className="inline-flex items-center gap-2 rounded-full bg-green-500 px-6 py-3 font-semibold text-black hover:bg-green-600 shadow-lg transition-colors text-sm"
+                      >
+                        <BookOpen className="w-4 h-4" />
+                        Upload EPUB
+                      </motion.button>
                       <motion.a
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.97 }}
                         href={localBook.webReaderLink || `https://books.google.com/books?id=${localBook.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 rounded-full bg-green-500 px-6 py-3 font-semibold text-black hover:bg-green-600 shadow-lg transition-colors text-sm"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        Read on Google Play Books
-                      </motion.a>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => setShowReader(false)}
                         className="inline-flex items-center gap-2 rounded-full border-2 border-gray-300 dark:border-gray-600 px-5 py-2.5 font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-sm"
                       >
-                        <X className="w-4 h-4" />
-                        Close
-                      </motion.button>
+                        <ExternalLink className="w-4 h-4" />
+                        Google Books
+                      </motion.a>
                     </div>
                   </div>
                 )}

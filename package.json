@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
+    "epubjs": "^0.3.93",
     "framer-motion": "^12.42.2",
     "gsap": "^3.15.0",
     "lucide-react": "^0.528.0",
@@ -20,7 +21,8 @@
     "next": "^16.2.10",
     "next-auth": "^4.24.13",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "react-reader": "^2.0.15"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

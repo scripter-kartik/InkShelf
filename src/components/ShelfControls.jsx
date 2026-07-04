@@ -57,21 +57,36 @@ export default function ShelfControls({ book }) {
   const persist = async (patch) => {
     setSaving(true);
     try {
+      const mergedStatus = patch.status !== undefined ? patch.status : shelfStatus;
+      
+      // If we are clearing both favorite and status, just delete it.
+      const isFav = patch.favorite !== undefined ? patch.favorite : favorite;
+      if (!isFav && !mergedStatus) {
+        const res = await fetch(`/api/shelf?bookKey=${encodeURIComponent(book.id)}`, { method: "DELETE" });
+        if (!res.ok) throw new Error();
+        return true;
+      }
+
+      const bodyData = {
+        bookKey: book.id,
+        title: book.title,
+        coverId: book.coverId,
+        author: book.author,
+        favorite: isFav,
+        progress: patch.progress !== undefined ? patch.progress : progress,
+        rating: patch.rating !== undefined ? patch.rating : rating,
+        notes: patch.notes !== undefined ? patch.notes : notes,
+      };
+      
+      // Only include status if it's truthy to avoid Mongoose enum validation errors on ""
+      if (mergedStatus) {
+        bodyData.status = mergedStatus;
+      }
+
       const res = await fetch("/api/shelf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bookKey: book.id,
-          title: book.title,
-          coverId: book.coverId,
-          author: book.author,
-          favorite,
-          status: shelfStatus || "want",
-          progress,
-          rating,
-          notes,
-          ...patch,
-        }),
+        body: JSON.stringify(bodyData),
       });
       if (res.status === 401) { toast("Please log in to save books.", "error"); return false; }
       if (res.status === 503) { toast("Saving needs a database (set MONGODB_URI).", "error"); return false; }
@@ -109,7 +124,7 @@ export default function ShelfControls({ book }) {
     setShelfStatus(value);
     if (!value) setProgress(0);
     const ok = await persist({ status: value, progress: value ? progress : 0 });
-    if (ok) toast("Shelf updated ✓", "success");
+    if (ok) toast(value ? "Shelf updated ✓" : "Removed from shelf", "success");
     else setShelfStatus(prev);
   };
 
