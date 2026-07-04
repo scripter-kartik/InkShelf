@@ -231,6 +231,7 @@ export async function fetchWorkDetail(id) {
     try {
         const item = await getJson(`${BASE}/volumes/${id}`);
         const info = item.volumeInfo || {};
+        const access = item.accessInfo || {};
         const author = (info.authors || [])[0] || "Unknown";
         const rawCover = info.imageLinks?.thumbnail ||
             info.imageLinks?.smallThumbnail ||
@@ -239,6 +240,11 @@ export async function fetchWorkDetail(id) {
             ? rawCover.replace("http://", "https://").replace(/&edge=curl/g, "")
             : null;
         const readUrl = info.previewLink || info.infoLink || null;
+        const embeddable = access.embeddable === true;
+        const viewability = access.viewability || "NO_PAGES";
+        const webReaderLink = access.webReaderLink
+            ? access.webReaderLink.replace("http://", "https://")
+            : null;
         return {
             id: item.id,
             key: `/volumes/${item.id}`,
@@ -251,6 +257,12 @@ export async function fetchWorkDetail(id) {
                 ? info.publishedDate.substring(0, 4)
                 : null,
             readUrl,
+            embeddable,
+            viewability,
+            webReaderLink,
+            pageCount: info.pageCount || null,
+            publisher: info.publisher || null,
+            language: info.language || null,
         };
     }
     catch (err) {

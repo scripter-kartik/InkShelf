@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -24,7 +24,6 @@ if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger, TextPlugin);
 }
 
-/* ── Static data ──────────────────────────────────────────────────────────── */
 const GENRES = [
   { emoji: "🧙‍♂️", label: "Fantasy", color: "from-purple-500 to-indigo-600" },
   { emoji: "🚀", label: "Sci-Fi", color: "from-blue-500 to-cyan-600" },
@@ -119,9 +118,8 @@ const MARQUEE_BOOKS = [
   "A Game of Thrones", "The Midnight Library", "Where the Crawdads Sing",
 ];
 
-/* ══════════════════════════════════════════════════════════════════════════ */
 export default function Home() {
-  /* ── Refs ─────────────────────────────────────────────────────────────── */
+  const [mounted, setMounted] = useState(false);
   const pageRef       = useRef(null);
   const particlesRef  = useRef(null);
   const heroRef       = useRef(null);
@@ -137,18 +135,17 @@ export default function Home() {
   const testimonialRef= useRef(null);
   const horizRef      = useRef(null);
 
-  /* Framer parallax */
   const { scrollYProgress } = useScroll();
   const parallaxY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
-  const parallaxScale = useTransform(scrollYProgress, [0, 0.4], [1, 1.12]);
 
-  /* ── GSAP master setup ────────────────────────────────────────────────── */
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
 
     const ctx = gsap.context(() => {
-
-      /* ── 1. FLOATING PARTICLES ─────────────────────────────────────────── */
       const dots = particlesRef.current?.querySelectorAll(".particle") || [];
       dots.forEach((dot) => {
         gsap.to(dot, {
@@ -165,7 +162,6 @@ export default function Home() {
         });
       });
 
-      /* ── 2. HERO TITLE CHARACTER SPLIT ────────────────────────────────── */
       if (titleRef.current) {
         const chars = titleRef.current.querySelectorAll(".char");
         gsap.fromTo(
@@ -183,7 +179,6 @@ export default function Home() {
         );
       }
 
-      /* ── 3. SUBTITLE TYPEWRITER ────────────────────────────────────────── */
       if (subtitleRef.current) {
         gsap.fromTo(
           subtitleRef.current,
@@ -195,10 +190,10 @@ export default function Home() {
             onComplete: () => {
               gsap.to(subtitleRef.current, {
                 text: {
-                  value: "Discover · Track · Love Your Books",
+                  value: "Your Free Reading Companion · Discover · Track",
                   delimiter: "",
                 },
-                duration: 1.8,
+                duration: 2.2,
                 ease: "none",
                 delay: 0.1,
               });
@@ -207,7 +202,6 @@ export default function Home() {
         );
       }
 
-      /* ── 4. HERO IMAGE PARALLAX (GSAP) ──────────────────────────────────── */
       if (heroImgRef.current) {
         gsap.to(heroImgRef.current, {
           yPercent: 20,
@@ -221,7 +215,6 @@ export default function Home() {
         });
       }
 
-      /* ── 5. SCROLL PROGRESS LINE ─────────────────────────────────────── */
       if (scrollLineRef.current) {
         gsap.to(scrollLineRef.current, {
           scaleX: 1,
@@ -235,7 +228,6 @@ export default function Home() {
         });
       }
 
-      /* ── 6. STATS COUNT-UP ───────────────────────────────────────────── */
       if (statsRef.current) {
         const cards = statsRef.current.querySelectorAll(".stat-card");
         gsap.fromTo(
@@ -254,7 +246,6 @@ export default function Home() {
             },
           }
         );
-        /* Animated numbers */
         statsRef.current.querySelectorAll(".stat-num").forEach((el) => {
           const raw = el.dataset.val;
           if (/^\d+/.test(raw)) {
@@ -279,7 +270,6 @@ export default function Home() {
         });
       }
 
-      /* ── 7. FEATURES CARDS STAGGER ───────────────────────────────────── */
       if (featuresRef.current) {
         const cards = featuresRef.current.querySelectorAll(".feature-card");
         gsap.fromTo(
@@ -298,7 +288,6 @@ export default function Home() {
             },
           }
         );
-        /* Floating icon on each card */
         cards.forEach((card) => {
           const icon = card.querySelector(".feature-icon");
           if (icon) {
@@ -314,7 +303,6 @@ export default function Home() {
         });
       }
 
-      /* ── 8. GENRE CARDS — SCATTER THEN GRID ─────────────────────────── */
       if (genresRef.current) {
         const cards = genresRef.current.querySelectorAll(".genre-card");
         gsap.fromTo(
@@ -343,7 +331,6 @@ export default function Home() {
         );
       }
 
-      /* ── 9. MARQUEE (infinite scroll) ────────────────────────────────── */
       if (marqueeRef.current) {
         const inner = marqueeRef.current.querySelector(".marquee-inner");
         if (inner) {
@@ -356,7 +343,6 @@ export default function Home() {
         }
       }
 
-      /* ── 10. TESTIMONIALS SLIDE IN ───────────────────────────────────── */
       if (testimonialRef.current) {
         const cards = testimonialRef.current.querySelectorAll(".testimonial-card");
         gsap.fromTo(
@@ -377,7 +363,6 @@ export default function Home() {
         );
       }
 
-      /* ── 11. CTA SECTION — EXPLOSIVE ENTRANCE ────────────────────────── */
       if (ctaRef.current) {
         const tl = gsap.timeline({
           scrollTrigger: {
@@ -404,7 +389,6 @@ export default function Home() {
           );
       }
 
-      /* ── 12. SECTION HEADINGS — UNDERLINE DRAW ───────────────────────── */
       document.querySelectorAll(".section-line").forEach((el) => {
         gsap.fromTo(
           el,
@@ -422,7 +406,6 @@ export default function Home() {
         );
       });
 
-      /* ── 13. HORIZONTAL FEATURE ROW SCRUB ────────────────────────────── */
       if (horizRef.current) {
         const items = horizRef.current.querySelectorAll(".horiz-item");
         gsap.fromTo(
@@ -441,13 +424,11 @@ export default function Home() {
           }
         );
       }
-
     }, pageRef);
 
     return () => ctx.revert();
-  }, []);
+  }, [mounted]);
 
-  /* Character split for hero title */
   const heroTitle = "Hi, we're InkShelf.";
   const chars = heroTitle.split("").map((char, i) => (
     <span
@@ -459,46 +440,40 @@ export default function Home() {
     </span>
   ));
 
-  /* ── Render ─────────────────────────────────────────────────────────────── */
   return (
     <div ref={pageRef} className="relative bg-white dark:bg-gray-950 overflow-x-hidden">
-
-      {/* ── SCROLL PROGRESS BAR ─────────────────────────────────────────── */}
       <div
         ref={scrollLineRef}
         className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-green-400 via-green-500 to-emerald-600 z-[60] origin-left"
         style={{ transform: "scaleX(0)" }}
       />
 
-      {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 1 — HERO                                                   */}
-      {/* ══════════════════════════════════════════════════════════════════ */}
       <section
         ref={heroRef}
         className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden"
       >
-        {/* Particles */}
-        <div ref={particlesRef} className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-          {Array.from({ length: 40 }).map((_, i) => (
-            <div
-              key={i}
-              className="particle absolute rounded-full"
-              style={{
-                width: `${Math.random() * 20 + 4}px`,
-                height: `${Math.random() * 20 + 4}px`,
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                background: i % 3 === 0
-                  ? "rgba(74,222,128,0.15)"
-                  : i % 3 === 1
-                  ? "rgba(52,211,153,0.12)"
-                  : "rgba(16,185,129,0.08)",
-              }}
-            />
-          ))}
-        </div>
+        {mounted && (
+          <div ref={particlesRef} className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+            {Array.from({ length: 40 }).map((_, i) => (
+              <div
+                key={i}
+                className="particle absolute rounded-full"
+                style={{
+                  width: `${(i % 5) * 4 + 6}px`,
+                  height: `${(i % 5) * 4 + 6}px`,
+                  top: `${(i * 17) % 100}%`,
+                  left: `${(i * 23) % 100}%`,
+                  background: i % 3 === 0
+                    ? "rgba(74,222,128,0.15)"
+                    : i % 3 === 1
+                    ? "rgba(52,211,153,0.12)"
+                    : "rgba(16,185,129,0.08)",
+                }}
+              />
+            ))}
+          </div>
+        )}
 
-        {/* Decorative BG image */}
         <motion.img
           ref={heroImgRef}
           src="/Subtract.png"
@@ -515,19 +490,17 @@ export default function Home() {
           className="absolute top-0 left-0 h-full w-auto object-contain z-0 hidden 2xl:block pointer-events-none opacity-70"
         />
 
-        {/* Radial glow */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(74,222,128,0.12),transparent)] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(74,222,128,0.07),transparent)] pointer-events-none" />
 
-        {/* Hero text */}
         <div className="relative z-10 text-center px-4 max-w-6xl mx-auto flex flex-col items-center gap-7">
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, ease: "backOut" }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-green-400/40 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-sm font-medium mb-2"
+            className="inline-flex items-center gap-2.5 px-6 py-2 rounded-full border-2 border-black dark:border-green-400 bg-green-400 text-black dark:bg-gray-900 dark:text-white text-md font-bold tracking-widest uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(74,222,128,1)] mb-2"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            Your free reading companion
+            <Sparkles className="w-4 h-4 text-black dark:text-green-400 animate-pulse" />
+            <span>INKSHELF</span>
           </motion.div>
 
           <h1
@@ -585,7 +558,6 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* Scroll indicator */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -603,9 +575,6 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* MARQUEE TICKER                                                      */}
-      {/* ══════════════════════════════════════════════════════════════════ */}
       <div className="py-5 bg-green-400 dark:bg-green-900/60 overflow-hidden border-y-2 border-black dark:border-green-700">
         <div ref={marqueeRef} className="overflow-hidden">
           <div className="marquee-inner flex gap-12 whitespace-nowrap will-change-transform"
@@ -621,9 +590,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 2 — STATS                                                  */}
-      {/* ══════════════════════════════════════════════════════════════════ */}
       <section className="py-24 px-4 bg-white dark:bg-gray-950">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
@@ -655,9 +621,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 3 — HERO IMAGE FEATURE                                     */}
-      {/* ══════════════════════════════════════════════════════════════════ */}
       <section className="relative py-24 px-4 bg-gray-50 dark:bg-gray-900 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_80%_50%,rgba(74,222,128,0.1),transparent)] pointer-events-none" />
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
@@ -702,7 +665,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Image */}
           <motion.div
             initial={{ opacity: 0, x: 60, rotate: 3 }}
             whileInView={{ opacity: 1, x: 0, rotate: 0 }}
@@ -733,9 +695,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 4 — FEATURES GRID                                          */}
-      {/* ══════════════════════════════════════════════════════════════════ */}
       <section className="py-24 px-4 bg-white dark:bg-gray-950">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
@@ -774,9 +733,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 5 — GENRES GRID                                            */}
-      {/* ══════════════════════════════════════════════════════════════════ */}
       <section className="py-24 px-4 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
@@ -823,9 +779,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 6 — TESTIMONIALS                                           */}
-      {/* ══════════════════════════════════════════════════════════════════ */}
       <section className="py-24 px-4 bg-white dark:bg-gray-950">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
@@ -867,9 +820,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* SECTION 7 — CTA BANNER                                             */}
-      {/* ══════════════════════════════════════════════════════════════════ */}
       <section ref={ctaRef} className="py-24 px-4 relative overflow-hidden">
         <div className="cta-bg absolute inset-0 bg-green-400 dark:bg-green-800" />
         <div className="relative z-10 max-w-4xl mx-auto text-center">
@@ -905,9 +855,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* FOOTER                                                              */}
-      {/* ══════════════════════════════════════════════════════════════════ */}
       <footer className="py-12 px-4 bg-gray-950 text-white">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
@@ -923,7 +870,6 @@ export default function Home() {
           <p className="text-sm text-gray-500">© 2026 InkShelf. Free forever.</p>
         </div>
       </footer>
-
     </div>
   );
 }
