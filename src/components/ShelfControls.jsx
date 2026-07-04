@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
-import { Heart } from "lucide-react";
+import { Heart, ChevronDown } from "lucide-react";
 import { SHELF_STATUSES } from "@/lib/constants";
 import { useToast } from "@/components/ToastProvider";
 import StarRating from "@/components/StarRating";
@@ -200,18 +200,23 @@ export default function ShelfControls({ book }) {
         </motion.button>
 
         {/* Status select */}
-        <motion.select
-          whileFocus={{ scale: 1.02 }}
-          value={shelfStatus}
-          onChange={(e) => changeStatus(e.target.value)}
-          disabled={saving}
-          className="rounded-full border-2 border-gray-400 bg-white px-4 py-2.5 font-semibold text-gray-700 outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 cursor-pointer hover:border-green-500 transition-colors"
-        >
-          <option value="">Add to shelf…</option>
-          {SHELF_STATUSES.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </motion.select>
+        <div className="relative">
+          <motion.select
+            whileFocus={{ scale: 1.02 }}
+            value={shelfStatus}
+            onChange={(e) => changeStatus(e.target.value)}
+            disabled={saving}
+            className="appearance-none rounded-full border-2 border-gray-400 bg-white pl-4 pr-10 py-2.5 font-semibold text-gray-700 outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 cursor-pointer hover:border-green-500 transition-colors"
+          >
+            <option value="">Add to shelf…</option>
+            {SHELF_STATUSES.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </motion.select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+            <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+          </div>
+        </div>
       </div>
 
       {/* Progress section */}
