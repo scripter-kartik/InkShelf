@@ -154,13 +154,18 @@ export default function Navbar() {
           {/* ── Logo ────────────────────────────────────────────────────── */}
           <div className="flex items-center gap-4 lg:gap-8">
             <Link href="/" className="flex shrink-0 items-center gap-2" onMouseEnter={handleLogoHover}>
-              <motion.img
-                ref={logoRef}
-                className="h-8 w-8"
-                src="/icon.png"
-                alt=""
-                whileTap={{ rotate: 360, transition: { duration: 0.4 } }}
-              />
+              <motion.div ref={logoRef} whileTap={{ rotate: 360, transition: { duration: 0.4 } }} className="relative h-8 w-8">
+                <img
+                  className="h-8 w-8 dark:hidden"
+                  src="/icon.png"
+                  alt="InkShelf Logo"
+                />
+                <img
+                  className="h-8 w-8 hidden dark:block"
+                  src="/open-book.png"
+                  alt="InkShelf Logo (Dark Mode)"
+                />
+              </motion.div>
               <span className="font-playwrite text-xl font-bold text-black dark:text-white">
                 InkShelf
               </span>
