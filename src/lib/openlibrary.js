@@ -1,6 +1,17 @@
 const BASE = "https://www.googleapis.com/books/v1";
+const OL_BASE = "https://openlibrary.org";
+const OL_TIMEOUT_MS = 30000;
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY || "";
-const withKey = (url) => (API_KEY ? `${url}&key=${API_KEY}` : url);
+const withKey = (url) => (API_KEY ? `${url}${url.includes("?") ? "&" : "?"}key=${API_KEY}` : url);
+const IS_BROWSER = typeof window !== "undefined";
+const SERVER_CACHE = { next: { revalidate: 12 * 60 * 60 } };
+async function viaApi(params, signal) {
+    const res = await fetch(`/api/books?${new URLSearchParams(params)}`, signal ? { signal } : undefined);
+    if (!res.ok) {
+        throw new Error(`/api/books request failed (${res.status})`);
+    }
+    return res.json();
+}
 const MOCK_LIBRARY = {
     fantasy: [
         { id: "mock_fantasy_1", title: "The Way of Kings", author: "Brandon Sanderson", cover: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=400&q=80", year: "2010", desc: "An epic masterpiece detailing a world torn apart by storms and warring factions, where magical armor and weapons determine fates.", subjects: ["Fantasy", "Epic Fantasy", "Magic"] },
@@ -63,10 +74,24 @@ export function workId(key = "") {
         .replace("/works/", "")
         .replace(/^\//, "");
 }
-async function getJson(url) {
-    const res = await fetch(withKey(url));
+async function getJson(url, signal) {
+    const res = await fetch(withKey(url), { ...SERVER_CACHE, ...(signal ? { signal } : {}) });
     if (!res.ok) {
-        throw new Error(`Books API request failed (${res.status}): ${url}`);
+        const err = new Error(`Books API request failed (${res.status}): ${url}`);
+        err.status = res.status;
+        throw err;
+    }
+    return res.json();
+}
+async function getOlJson(path, signal) {
+    const res = await fetch(`${OL_BASE}${path}`, {
+        ...SERVER_CACHE,
+        signal: signal ?? AbortSignal.timeout(OL_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+        const err = new Error(`Open Library request failed (${res.status}): ${path}`);
+        err.status = res.status;
+        throw err;
     }
     return res.json();
 }
@@ -85,6 +110,30 @@ function normalizeVolume(item) {
         cover_i: null,
     };
 }
+function normalizeOlDoc(doc) {
+    const authors = doc.author_name || doc.authors?.map((a) => a.name).filter(Boolean) || [];
+    return {
+        key: doc.key,
+        title: doc.title || "Untitled",
+        authors: authors.map((name) => ({ name })),
+        author_name: authors,
+        cover_id: doc.cover_i ?? doc.cover_id ?? null,
+        cover_i: null,
+    };
+}
+function mockToBook(m) {
+    return {
+        key: m.id,
+        title: m.title,
+        authors: [{ name: m.author }],
+        author_name: [m.author],
+        cover_id: m.cover,
+        cover_i: null,
+    };
+}
+function allMocks() {
+    return Object.values(MOCK_LIBRARY).flat();
+}
 function deduplicateBooks(books) {
     const seen = new Set();
     return books.filter((book) => {
@@ -96,136 +145,297 @@ function deduplicateBooks(books) {
         return true;
     });
 }
-export async function fetchBooksByCategories(categories, limit = 12) {
-    return Promise.all(categories.map(async ({ label, key }) => {
+async function booksForSubject(subjectKey, limit) {
+    if (IS_BROWSER) {
         try {
-            const subject = key.replace(/_/g, " ");
-            const data = await getJson(`${BASE}/volumes?q=subject:${encodeURIComponent(subject)}&maxResults=${Math.min(limit, 40)}&orderBy=relevance&langRestrict=en`);
-            return {
-                category: label,
-                books: deduplicateBooks((data.items || []).map(normalizeVolume)),
-            };
+            return (await viaApi({ type: "subject", key: subjectKey.toLowerCase(), limit })).books;
         }
         catch (err) {
-            console.warn(`API load failed for category "${label}", falling back to mock library.`);
-            const mocks = getMockBooksForCategory(key, limit);
-            return {
-                category: label,
-                books: mocks.map(m => ({
-                    key: m.id,
-                    title: m.title,
-                    authors: [{ name: m.author }],
-                    author_name: [m.author],
-                    cover_id: m.cover,
-                    cover_i: null
-                })),
-            };
+            console.warn(`Loading subject "${subjectKey}" failed, falling back to mock library.`);
+            return getMockBooksForCategory(subjectKey, limit).map(mockToBook);
         }
-    }));
+    }
+    try {
+        const data = await getOlJson(`/subjects/${encodeURIComponent(subjectKey.toLowerCase())}.json?limit=${limit}`);
+        const books = deduplicateBooks((data.works || []).map(normalizeOlDoc));
+        if (books.length > 0)
+            return books;
+    }
+    catch (err) {
+        console.warn(`Open Library failed for subject "${subjectKey}", trying Google Books.`);
+    }
+    try {
+        const subject = subjectKey.replace(/_/g, " ");
+        const data = await getJson(`${BASE}/volumes?q=${encodeURIComponent(subject)}&maxResults=${Math.min(limit, 40)}&orderBy=relevance&langRestrict=en`);
+        const books = deduplicateBooks((data.items || []).map(normalizeVolume));
+        if (books.length > 0)
+            return books;
+    }
+    catch (err) {
+        console.warn(`Google Books failed for subject "${subjectKey}", falling back to mock library.`);
+    }
+    return getMockBooksForCategory(subjectKey, limit).map(mockToBook);
+}
+export async function fetchBooksByCategories(categories, limit = 12) {
+    return Promise.all(categories.map(async ({ label, key }) => ({
+        category: label,
+        books: await booksForSubject(key, limit),
+    })));
 }
 export async function fetchBooksByGenre(genre, limit = 40) {
-    try {
-        const subject = genre.replace(/_/g, " ");
-        const data = await getJson(`${BASE}/volumes?q=subject:${encodeURIComponent(subject)}&maxResults=${Math.min(limit, 40)}&orderBy=relevance&langRestrict=en`);
-        return deduplicateBooks((data.items || []).map(normalizeVolume));
-    }
-    catch (err) {
-        console.warn(`API load failed for genre "${genre}", using fallback mock books.`);
-        const mocks = getMockBooksForCategory(genre, limit);
-        return mocks.map(m => ({
-            key: m.id,
-            title: m.title,
-            authors: [{ name: m.author }],
-            author_name: [m.author],
-            cover_id: m.cover,
-            cover_i: null
-        }));
-    }
+    return booksForSubject(genre, limit);
 }
-export async function fetchBooksBySearch(query, limit = 40) {
-    try {
-        const data = await getJson(`${BASE}/volumes?q=${encodeURIComponent(query)}&maxResults=${Math.min(limit, 40)}&langRestrict=en`);
-        return deduplicateBooks((data.items || []).map(normalizeVolume));
+const SEARCH_PAGE_SIZE = 40;
+const OL_SEARCH_FIELDS = "key,title,author_name,cover_i";
+async function searchGoogle(query, page) {
+    const startIndex = page * SEARCH_PAGE_SIZE;
+    const data = await getJson(`${BASE}/volumes?q=${encodeURIComponent(query)}&maxResults=${SEARCH_PAGE_SIZE}&startIndex=${startIndex}&langRestrict=en`);
+    const items = data.items || [];
+    return {
+        books: deduplicateBooks(items.map(normalizeVolume)),
+        hasMore: items.length > 0 && startIndex + items.length < (data.totalItems || 0),
+    };
+}
+async function searchOpenLibrary(query, page) {
+    const data = await getOlJson(`/search.json?q=${encodeURIComponent(query)}&limit=${SEARCH_PAGE_SIZE}&page=${page + 1}&fields=${OL_SEARCH_FIELDS}`);
+    const docs = data.docs || [];
+    const total = data.numFound ?? data.num_found ?? 0;
+    return {
+        books: deduplicateBooks(docs.map(normalizeOlDoc)),
+        hasMore: docs.length > 0 && (page + 1) * SEARCH_PAGE_SIZE < total,
+    };
+}
+export async function searchBooks(query, { page = 0, source } = {}) {
+    if (IS_BROWSER) {
+        return viaApi({ type: "search", q: query, page, ...(source ? { source } : {}) });
     }
-    catch (err) {
-        console.warn(`Search failed for "${query}", searching fallback mock library.`);
-        const allMocks = [];
-        Object.keys(MOCK_LIBRARY).forEach(k => {
-            allMocks.push(...MOCK_LIBRARY[k]);
-        });
-        const filtered = allMocks.filter(m => m.title.toLowerCase().includes(query.toLowerCase()) ||
-            m.author.toLowerCase().includes(query.toLowerCase()));
-        return filtered.map(m => ({
-            key: m.id,
-            title: m.title,
-            authors: [{ name: m.author }],
-            author_name: [m.author],
-            cover_id: m.cover,
-            cover_i: null
-        }));
+    if (!source || source === "google") {
+        try {
+            const result = await searchGoogle(query, page);
+            if (result.books.length > 0 || source === "google")
+                return { ...result, source: "google" };
+        }
+        catch (err) {
+            if (source === "google")
+                throw err;
+            console.warn(`Google Books search failed for "${query}", trying Open Library.`);
+        }
     }
+    if (!source || source === "openlibrary") {
+        try {
+            const result = await searchOpenLibrary(query, page);
+            if (result.books.length > 0 || source === "openlibrary")
+                return { ...result, source: "openlibrary" };
+        }
+        catch (err) {
+            if (source === "openlibrary")
+                throw err;
+            console.warn(`Open Library search failed for "${query}", searching fallback mock library.`);
+        }
+    }
+    const q = query.toLowerCase();
+    const books = allMocks()
+        .filter((m) => m.title.toLowerCase().includes(q) || m.author.toLowerCase().includes(q))
+        .map(mockToBook);
+    return { books, hasMore: false, source: "mock" };
+}
+export async function fetchBooksBySearch(query) {
+    return (await searchBooks(query)).books;
 }
 export async function fetchSuggestions(query, limit = 5, signal) {
+    if (IS_BROWSER) {
+        return (await viaApi({ type: "suggest", q: query, limit }, signal)).titles;
+    }
     try {
-        const res = await fetch(withKey(`${BASE}/volumes?q=${encodeURIComponent(query)}&maxResults=${limit}`), { signal });
-        if (!res.ok)
-            throw new Error();
-        const data = await res.json();
-        return (data.items || [])
+        const data = await getJson(`${BASE}/volumes?q=${encodeURIComponent(query)}&maxResults=${limit}`, signal);
+        const titles = (data.items || [])
             .slice(0, limit)
             .map((item) => item.volumeInfo?.title || "")
             .filter(Boolean);
+        if (titles.length > 0)
+            return titles;
     }
     catch (err) {
-        const allMocks = [];
-        Object.keys(MOCK_LIBRARY).forEach(k => {
-            allMocks.push(...MOCK_LIBRARY[k]);
-        });
-        return allMocks
-            .filter(m => m.title.toLowerCase().includes(query.toLowerCase()))
-            .slice(0, limit)
-            .map(m => m.title);
+        if (err.name === "AbortError")
+            throw err;
     }
+    try {
+        const data = await getOlJson(`/search.json?q=${encodeURIComponent(query)}&limit=${limit}&fields=title`, signal);
+        const titles = [...new Set((data.docs || []).map((d) => d.title).filter(Boolean))];
+        if (titles.length > 0)
+            return titles.slice(0, limit);
+    }
+    catch (err) {
+        if (err.name === "AbortError")
+            throw err;
+    }
+    return allMocks()
+        .filter(m => m.title.toLowerCase().includes(query.toLowerCase()))
+        .slice(0, limit)
+        .map(m => m.title);
 }
-export async function fetchWorkDetail(id) {
-    if (String(id).startsWith("mock_")) {
-        const allMocks = [];
-        Object.keys(MOCK_LIBRARY).forEach(k => {
-            allMocks.push(...MOCK_LIBRARY[k]);
-        });
-        const found = allMocks.find(m => m.id === id);
-        if (found) {
-            return {
-                id: found.id,
-                key: `/volumes/${found.id}`,
-                title: found.title,
-                description: found.desc,
-                author: found.author,
-                coverId: found.cover,
-                subjects: found.subjects,
-                firstPublishYear: found.year,
-                readUrl: "https://books.google.com"
-            };
+const ALLOWED_DESCRIPTION_TAGS = new Set(["p", "br", "b", "strong", "i", "em", "u", "ul", "ol", "li"]);
+const NAMED_ENTITIES = { amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'", nbsp: " " };
+function decodeEntities(str) {
+    return str.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, entity) => {
+        const e = entity.toLowerCase();
+        if (e.startsWith("#")) {
+            const code = e[1] === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+            return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
         }
-        const parts = id.split("_");
-        if (parts.length >= 3) {
-            const cat = parts[1];
-            const index = parseInt(parts[2], 10);
-            const mocks = getMockBooksForCategory(cat);
-            const dynFound = mocks[index - 1] || mocks[0];
-            if (dynFound) {
-                return {
-                    id: dynFound.id,
-                    key: `/volumes/${dynFound.id}`,
-                    title: dynFound.title,
-                    description: dynFound.desc,
-                    author: dynFound.author,
-                    coverId: dynFound.cover,
-                    subjects: dynFound.subjects,
-                    firstPublishYear: dynFound.year,
-                    readUrl: "https://books.google.com"
-                };
-            }
+        return NAMED_ENTITIES[e] ?? match;
+    });
+}
+function escapeHtml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+export function parseDescription(raw = "") {
+    let html = "";
+    let text = "";
+    const normalized = String(raw).replace(
+        /&lt;(\/?)(p|br|b|strong|i|em|u|ul|ol|li)\s*\/?&gt;/gi,
+        "<$1$2>"
+    );
+    for (const token of normalized.split(/(<[^<>]*>)/)) {
+        if (!token)
+            continue;
+        const tag = token.match(/^<(\/?)([a-z][a-z0-9]*)\b[^>]*>$/i);
+        if (!tag) {
+            const decoded = decodeEntities(token);
+            html += escapeHtml(decoded);
+            text += decoded;
+            continue;
+        }
+        const closing = tag[1] === "/";
+        const name = tag[2].toLowerCase();
+        if (name === "br")
+            text += "\n";
+        else if ((name === "p" || name === "div") && closing)
+            text += "\n\n";
+        else if (name === "li" && !closing)
+            text += "\n• ";
+        if (!ALLOWED_DESCRIPTION_TAGS.has(name))
+            continue;
+        html += name === "br" ? "<br>" : `<${closing ? "/" : ""}${name}>`;
+    }
+    return {
+        html: html.trim(),
+        text: text.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(),
+    };
+}
+function mockDetail(m) {
+    return {
+        id: m.id,
+        key: `/volumes/${m.id}`,
+        title: m.title,
+        description: m.desc,
+        author: m.author,
+        coverId: m.cover,
+        subjects: m.subjects,
+        firstPublishYear: m.year,
+        readUrl: "https://books.google.com",
+        source: "mock",
+    };
+}
+function offlineFallback(id) {
+    return {
+        id: id,
+        key: `/volumes/${id}`,
+        title: "Fallback Offline Book",
+        description: "This book metadata was loaded from offline cached values as the remote Books API is rate-limited or unreachable.",
+        author: "Unknown Author",
+        coverId: null,
+        subjects: ["Offline"],
+        firstPublishYear: "N/A",
+        readUrl: null
+    };
+}
+export function isOpenLibraryId(id) {
+    return /^OL\d+W$/i.test(String(id));
+}
+async function fetchOpenLibraryWorkDetail(id) {
+    const work = await getOlJson(`/works/${id}.json`);
+    const description = typeof work.description === "string"
+        ? work.description
+        : work.description?.value || "";
+    let author = "Unknown";
+    const authorKey = work.authors?.[0]?.author?.key;
+    if (authorKey) {
+        try {
+            author = (await getOlJson(`${authorKey}.json`)).name || author;
+        }
+        catch { }
+    }
+    const coverId = (work.covers || []).find((c) => c > 0);
+    return {
+        id,
+        key: `/works/${id}`,
+        title: work.title || "Untitled",
+        description,
+        author,
+        coverId: coverId ? String(coverId) : null,
+        subjects: (work.subjects || []).slice(0, 12),
+        firstPublishYear: work.first_publish_date?.match(/\d{4}/)?.[0] ?? null,
+        readUrl: `${OL_BASE}/works/${id}`,
+        embeddable: false,
+        viewability: "NO_PAGES",
+        webReaderLink: null,
+        pageCount: null,
+        publisher: null,
+        language: null,
+        source: "openlibrary",
+    };
+}
+const DETAIL_TTL_MS = 12 * 60 * 60 * 1000;
+const DETAIL_FALLBACK_TTL_MS = 60 * 1000;
+const DETAIL_CACHE_MAX = 1000;
+const DETAIL_CACHE_VERSION = 3;
+const detailCache = IS_BROWSER ? null : (() => {
+    const existing = globalThis.__inkshelfDetailCache;
+    if (existing?.version === DETAIL_CACHE_VERSION)
+        return existing.map;
+    const map = new Map();
+    globalThis.__inkshelfDetailCache = { version: DETAIL_CACHE_VERSION, map };
+    return map;
+})();
+export async function fetchWorkDetail(id) {
+    if (!detailCache)
+        return fetchWorkDetailUncached(id);
+    const key = String(id);
+    const hit = detailCache.get(key);
+    if (hit && hit.expires > Date.now())
+        return hit.promise;
+    const promise = fetchWorkDetailUncached(key);
+    if (detailCache.size >= DETAIL_CACHE_MAX)
+        detailCache.delete(detailCache.keys().next().value);
+    detailCache.set(key, { promise, expires: Date.now() + DETAIL_TTL_MS });
+    promise.then((book) => {
+        if (book?.title === "Fallback Offline Book")
+            detailCache.set(key, { promise, expires: Date.now() + DETAIL_FALLBACK_TTL_MS });
+    }, () => detailCache.delete(key));
+    return promise;
+}
+async function fetchWorkDetailUncached(id) {
+    if (String(id).startsWith("mock_")) {
+        const found = allMocks().find(m => m.id === id);
+        if (found)
+            return mockDetail(found);
+        const match = String(id).match(/^mock_(.+)_(\d+)$/);
+        if (match) {
+            const mocks = getMockBooksForCategory(match[1]);
+            const dynFound = mocks[parseInt(match[2], 10) - 1] || mocks[0];
+            if (dynFound)
+                return mockDetail(dynFound);
+        }
+    }
+    if (isOpenLibraryId(id)) {
+        try {
+            return await fetchOpenLibraryWorkDetail(id);
+        }
+        catch (err) {
+            if (err.status === 404)
+                throw err;
+            return offlineFallback(id);
         }
     }
     try {
@@ -249,7 +459,10 @@ export async function fetchWorkDetail(id) {
             id: item.id,
             key: `/volumes/${item.id}`,
             title: info.title || "Untitled",
-            description: info.description || "",
+            ...(() => {
+                const { html, text } = parseDescription(info.description || "");
+                return { description: text, descriptionHtml: html };
+            })(),
             author,
             coverId,
             subjects: (info.categories || []).slice(0, 12),
@@ -263,19 +476,13 @@ export async function fetchWorkDetail(id) {
             pageCount: info.pageCount || null,
             publisher: info.publisher || null,
             language: info.language || null,
+            source: "google",
         };
     }
     catch (err) {
-        return {
-            id: id,
-            key: `/volumes/${id}`,
-            title: "Fallback Offline Book",
-            description: "This book metadata was loaded from offline cached values as the remote Books API is rate-limited or unreachable.",
-            author: "Unknown Author",
-            coverId: null,
-            subjects: ["Offline"],
-            firstPublishYear: "N/A",
-            readUrl: null
-        };
+        if (err.status === 404) {
+            throw err;
+        }
+        return offlineFallback(id);
     }
 }

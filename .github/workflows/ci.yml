@@ -31,6 +31,5 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Dummy value so NextAuth doesn't warn during the production build.
           NEXTAUTH_SECRET: ci-build-placeholder-secret
           NEXTAUTH_URL: http://localhost:3000

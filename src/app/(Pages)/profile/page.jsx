@@ -28,7 +28,6 @@ export default function ProfilePage() {
   const avatarRef = useRef(null);
   const ringRef = useRef(null);
 
-  /* GSAP avatar pulse ring */
   useEffect(() => {
     const ring = ringRef.current;
     if (!ring) return;
@@ -44,7 +43,6 @@ export default function ProfilePage() {
     return () => ctx.revert();
   }, []);
 
-  /* GSAP avatar pop-in */
   useEffect(() => {
     const el = avatarRef.current;
     if (!el) return;
@@ -103,7 +101,6 @@ export default function ProfilePage() {
           </motion.div>
         ) : (
           <>
-            {/* Avatar + name */}
             <div className="flex items-center gap-5 mb-10">
               <div className="relative flex-shrink-0">
                 <div
@@ -132,7 +129,6 @@ export default function ProfilePage() {
               </motion.div>
             </div>
 
-            {/* Stats header */}
             <motion.h2
               initial={{ opacity: 0, x: -16 }}
               animate={{ opacity: 1, x: 0 }}
@@ -143,7 +139,6 @@ export default function ProfilePage() {
               Reading stats
             </motion.h2>
 
-            {/* Stat cards */}
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
               {[
                 { label: "On shelf", value: stats.total, color: "text-blue-600 dark:text-blue-400" },
@@ -170,7 +165,6 @@ export default function ProfilePage() {
               ))}
             </div>
 
-            {/* CTA buttons */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -203,7 +197,6 @@ export default function ProfilePage() {
   );
 }
 
-/* Animated counter using GSAP */
 function AnimatedNumber({ value, className }) {
   const ref = useRef(null);
   const obj = useRef({ n: 0 });

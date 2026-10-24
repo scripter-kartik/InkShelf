@@ -69,7 +69,6 @@ export default function Navbar() {
   const logoRef = useRef(null);
   const { data: session } = useSession();
 
-  /* GSAP navbar entrance */
   useEffect(() => {
     const el = navRef.current;
     if (!el) return;
@@ -80,7 +79,6 @@ export default function Navbar() {
     );
   }, []);
 
-  /* GSAP logo hover wiggle */
   const handleLogoHover = () => {
     if (!logoRef.current) return;
     gsap.to(logoRef.current, {
@@ -93,14 +91,12 @@ export default function Navbar() {
     });
   };
 
-  /* Scroll shadow */
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  /* Click outside */
   useEffect(() => {
     const onClick = (e) => {
       if (browseRef.current && !browseRef.current.contains(e.target))
@@ -114,7 +110,6 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  /* Suggestions */
   useEffect(() => {
     if (query.trim().length < 2) return setSuggestions([]);
     const controller = new AbortController();
@@ -151,7 +146,6 @@ export default function Navbar() {
         }`}
       >
         <nav className="mx-auto flex h-16 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6">
-          {/* ── Logo ────────────────────────────────────────────────────── */}
           <div className="flex items-center gap-4 lg:gap-8">
             <Link href="/" className="flex shrink-0 items-center gap-2" onMouseEnter={handleLogoHover}>
               <motion.div ref={logoRef} whileTap={{ rotate: 360, transition: { duration: 0.4 } }} className="relative h-8 w-8">
@@ -171,7 +165,6 @@ export default function Navbar() {
               </span>
             </Link>
 
-            {/* ── Browse dropdown ────────────────────────────────────────── */}
             <div className="relative hidden lg:block" ref={browseRef}>
               <motion.button
                 whileHover={{ scale: 1.03 }}
@@ -216,7 +209,6 @@ export default function Navbar() {
               </AnimatePresence>
             </div>
 
-            {/* ── Desktop search ─────────────────────────────────────────── */}
             <div className="relative hidden lg:block" ref={searchRef}>
               <motion.div
                 animate={showSuggestions ? { scale: 1.01 } : { scale: 1 }}
@@ -279,11 +271,9 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* ── Right side ──────────────────────────────────────────────── */}
           <div className="flex items-center gap-2 sm:gap-4">
             <ThemeToggle />
 
-            {/* Mobile search icon */}
             <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
               <Link
                 href="/smallSearchedBooks"
@@ -294,7 +284,6 @@ export default function Navbar() {
               </Link>
             </motion.div>
 
-            {/* Account (desktop) */}
             {session?.user ? (
               <div className="relative hidden sm:block" ref={accountRef}>
                 <motion.button
@@ -368,7 +357,6 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* Mobile avatar + hamburger */}
             <div className="flex items-center gap-2 sm:hidden">
               {session?.user && (
                 <motion.img
@@ -413,7 +401,6 @@ export default function Navbar() {
           </div>
         </nav>
 
-        {/* ── Mobile menu ────────────────────────────────────────────────── */}
         <AnimatePresence>
           {menuOpen && (
             <motion.div

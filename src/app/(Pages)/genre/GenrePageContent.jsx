@@ -37,7 +37,6 @@ export default function GenrePageContent() {
     setBooks([]);
     setVisibleCount(24);
 
-    /* GSAP header entrance */
     if (headerRef.current) {
       gsap.fromTo(
         headerRef.current,
@@ -61,7 +60,7 @@ export default function GenrePageContent() {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 overflow-x-clip">
       <Navbar />
       <div className="max-w-[1600px] mx-auto px-3 md:px-6 py-6">
         <motion.div
@@ -70,7 +69,6 @@ export default function GenrePageContent() {
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           className="bg-green-400 dark:bg-green-900/50 rounded-2xl p-4 md:p-6"
         >
-          {/* Header */}
           <div ref={headerRef} className="mb-6 flex items-end justify-between flex-wrap gap-3">
             <h1 className="text-2xl md:text-3xl font-extrabold font-winky text-black dark:text-white capitalize">
               {displayName}
@@ -87,7 +85,6 @@ export default function GenrePageContent() {
             )}
           </div>
 
-          {/* Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
             {loading
               ? Array.from({ length: 12 }).map((_, i) => (
@@ -120,7 +117,6 @@ export default function GenrePageContent() {
                 ))}
           </div>
 
-          {/* Empty state */}
           {!loading && books.length === 0 && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -134,7 +130,6 @@ export default function GenrePageContent() {
             </motion.div>
           )}
 
-          {/* Load more */}
           {!loading && visibleCount < books.length && (
             <motion.div
               initial={{ opacity: 0, y: 16 }}

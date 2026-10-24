@@ -73,10 +73,13 @@ export async function POST(request) {
         update.notes = body.notes;
     try {
         await connectToDatabase();
-        const item = await ShelfItem.findOneAndUpdate({ userId: session.user.id, bookKey }, { $set: update, $setOnInsert: { userId: session.user.id, bookKey } }, { new: true, upsert: true, setDefaultsOnInsert: true }).lean();
+        const item = await ShelfItem.findOneAndUpdate({ userId: session.user.id, bookKey }, { $set: update, $setOnInsert: { userId: session.user.id, bookKey } }, { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }).lean();
         return NextResponse.json({ item });
     }
     catch (err) {
+        if (err.name === "ValidationError" || err.name === "CastError") {
+            return NextResponse.json({ error: "Invalid shelf data." }, { status: 400 });
+        }
         console.error("Shelf POST failed:", err.message);
         return NextResponse.json({ error: "Failed to save book." }, { status: 500 });
     }

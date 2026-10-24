@@ -116,7 +116,6 @@ export default function AuthModal({ mode = "login", onClose, onSwitch }) {
           className="relative w-full max-w-sm rounded-2xl bg-white p-7 shadow-2xl dark:bg-gray-900 border border-gray-100 dark:border-gray-800"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Close button */}
           <motion.button
             whileHover={{ scale: 1.1, rotate: 90 }}
             whileTap={{ scale: 0.9 }}
@@ -128,7 +127,6 @@ export default function AuthModal({ mode = "login", onClose, onSwitch }) {
             <X className="h-5 w-5" />
           </motion.button>
 
-          {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -146,7 +144,6 @@ export default function AuthModal({ mode = "login", onClose, onSwitch }) {
             </p>
           </motion.div>
 
-          {/* Google */}
           <motion.button
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -160,7 +157,6 @@ export default function AuthModal({ mode = "login", onClose, onSwitch }) {
             Continue with Google
           </motion.button>
 
-          {/* Divider */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -172,7 +168,6 @@ export default function AuthModal({ mode = "login", onClose, onSwitch }) {
             <hr className="flex-grow border-gray-200 dark:border-gray-700" />
           </motion.div>
 
-          {/* Form fields */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             {fields.map((f, i) => (
               <motion.div

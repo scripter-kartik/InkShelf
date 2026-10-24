@@ -1,0 +1,102 @@
+import { NextResponse } from "next/server";
+import { fetchBooksByGenre, searchBooks, fetchSuggestions, fetchWorkDetail } from "@/lib/openlibrary";
+
+const TTL_MS = {
+  subject: 12 * 60 * 60 * 1000,
+  search: 6 * 60 * 60 * 1000,
+  suggest: 6 * 60 * 60 * 1000,
+};
+const FALLBACK_TTL_MS = 2 * 60 * 1000;
+const CACHE_MAX = 2000;
+const cache = new Map();
+const inFlight = new Map();
+
+const SOURCES = new Set(["google", "openlibrary", "mock"]);
+
+function isPlaceholder(books = []) {
+  return books.some((b) => String(b.key).startsWith("mock_"));
+}
+
+function parse(searchParams) {
+  const type = searchParams.get("type");
+  const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "12", 10) || 12, 1), 40);
+
+  if (type === "subject") {
+    const key = (searchParams.get("key") || "").toLowerCase();
+    if (!/^[a-z_]{1,40}$/.test(key)) return null;
+    return { type, cacheKey: `subject|${key}|${limit}`, run: async () => {
+      const books = await fetchBooksByGenre(key, limit);
+      return { data: { books }, placeholder: isPlaceholder(books) };
+    } };
+  }
+
+  if (type === "detail") {
+    const id = searchParams.get("id") || "";
+    if (!/^[A-Za-z0-9_-]{1,40}$/.test(id)) return null;
+    return { type, cacheKey: null, run: async () => {
+      await fetchWorkDetail(id);
+      return { data: { ok: true }, placeholder: false };
+    } };
+  }
+
+  const q = (searchParams.get("q") || "").trim().slice(0, 200);
+  if (!q) return null;
+
+  if (type === "search") {
+    const page = Math.min(Math.max(parseInt(searchParams.get("page") || "0", 10) || 0, 0), 50);
+    const sourceParam = searchParams.get("source");
+    const source = SOURCES.has(sourceParam) ? sourceParam : undefined;
+    return { type, cacheKey: `search|${q.toLowerCase()}|${page}|${source || ""}`, run: async () => {
+      const data = await searchBooks(q, { page, source });
+      return { data, placeholder: data.source === "mock" };
+    } };
+  }
+
+  if (type === "suggest") {
+    return { type, cacheKey: `suggest|${q.toLowerCase()}|${limit}`, run: async () => {
+      const titles = await fetchSuggestions(q, limit);
+      return { data: { titles }, placeholder: false };
+    } };
+  }
+
+  return null;
+}
+
+export async function GET(request) {
+  const req = parse(new URL(request.url).searchParams);
+  if (!req) {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  if (req.type === "detail") {
+    try {
+      return NextResponse.json((await req.run()).data);
+    } catch (err) {
+      return NextResponse.json({ ok: false }, { status: err.status === 404 ? 404 : 502 });
+    }
+  }
+
+  const hit = cache.get(req.cacheKey);
+  if (hit && Date.now() < hit.expires) {
+    return NextResponse.json(hit.data, { headers: { "X-Cache": "HIT" } });
+  }
+
+  let pending = inFlight.get(req.cacheKey);
+  if (!pending) {
+    pending = req.run().finally(() => inFlight.delete(req.cacheKey));
+    inFlight.set(req.cacheKey, pending);
+  }
+
+  try {
+    const { data, placeholder } = await pending;
+    if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
+    cache.set(req.cacheKey, {
+      data,
+      expires: Date.now() + (placeholder ? FALLBACK_TTL_MS : TTL_MS[req.type]),
+    });
+    return NextResponse.json(data, { headers: { "X-Cache": "MISS" } });
+  } catch (err) {
+    console.error("Books API failed:", err.message);
+    return NextResponse.json({ error: "Failed to load books." }, { status: 502 });
+  }
+}

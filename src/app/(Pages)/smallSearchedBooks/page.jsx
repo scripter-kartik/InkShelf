@@ -10,7 +10,6 @@ import { fetchBooksByCategories, fetchSuggestions, coverUrl, workId } from "@/li
 
 const BATCH_SIZE = 3;
 
-// Genre emoji map for visual flair
 const GENRE_ICONS = {
   fantasy: "🧙‍♂️",
   science_fiction: "🚀",
@@ -52,8 +51,6 @@ const GENRE_COLORS = [
   "from-cyan-500/20 to-blue-500/20 border-cyan-400/30",
   "from-green-500/20 to-emerald-500/20 border-green-400/30",
 ];
-
-// ── Framer variants ────────────────────────────────────────────────────────────
 
 const pageVariants = {
   initial: { opacity: 0 },
@@ -97,8 +94,6 @@ const bookCardVariants = {
     transition: { duration: 0.4, delay: i * 0.05, ease: [0.22, 1, 0.36, 1] },
   }),
 };
-
-// ── Sub-components ─────────────────────────────────────────────────────────────
 
 function BookCard({ book, index }) {
   const id = workId(book.key);
@@ -177,8 +172,6 @@ function SectionSkeleton({ label }) {
   );
 }
 
-// ── Main page ──────────────────────────────────────────────────────────────────
-
 export default function SmallSearchedBooks() {
   const [query, setQuery] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
@@ -189,14 +182,13 @@ export default function SmallSearchedBooks() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [fetchError, setFetchError] = useState(null);
-  const [view, setView] = useState("discover"); // "discover" | "genres"
+  const [view, setView] = useState("discover");
 
   const loadRef = useRef(null);
   const inputRef = useRef(null);
   const searchRef = useRef(null);
   const router = useRouter();
 
-  // ── Suggestions ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (query.trim().length < 2) {
       setSuggestions([]);
@@ -218,7 +210,6 @@ export default function SmallSearchedBooks() {
     };
   }, [query]);
 
-  // ── Click outside to close suggestions ──────────────────────────────────────
   useEffect(() => {
     const onClick = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
@@ -229,7 +220,6 @@ export default function SmallSearchedBooks() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  // ── Load book categories ─────────────────────────────────────────────────────
   const loadBooks = useCallback(async () => {
     if (currentIndex >= CATEGORIES.length || isFetchingMore) return;
     setIsFetchingMore(true);
@@ -251,7 +241,6 @@ export default function SmallSearchedBooks() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Infinite scroll observer ─────────────────────────────────────────────────
   useEffect(() => {
     const el = loadRef.current;
     if (!el) return;
@@ -265,7 +254,6 @@ export default function SmallSearchedBooks() {
     return () => observer.disconnect();
   }, [loadRef.current, isFetchingMore, loadBooks]);
 
-  // ── Navigation helpers ───────────────────────────────────────────────────────
   const goToSearch = (term) => {
     const q = (term ?? query).trim();
     if (!q) return;
@@ -300,10 +288,8 @@ export default function SmallSearchedBooks() {
       animate="animate"
       className="min-h-screen bg-gray-50 dark:bg-gray-950"
     >
-      {/* ── Sticky Header ──────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 bg-green-400 dark:bg-gray-900 border-b-2 border-black dark:border-gray-700">
         <div className="flex items-center gap-3 px-4 py-3">
-          {/* Back button */}
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => router.back()}
@@ -313,7 +299,6 @@ export default function SmallSearchedBooks() {
             <ChevronLeft className="w-5 h-5 text-black dark:text-white" />
           </motion.button>
 
-          {/* Search bar */}
           <motion.div
             ref={searchRef}
             variants={searchBarVariants}
@@ -360,7 +345,6 @@ export default function SmallSearchedBooks() {
               </AnimatePresence>
             </div>
 
-            {/* Suggestions dropdown */}
             <AnimatePresence>
               {showSuggestions && suggestions.length > 0 && (
                 <motion.ul
@@ -392,7 +376,6 @@ export default function SmallSearchedBooks() {
           </motion.div>
         </div>
 
-        {/* ── Tab strip ────────────────────────────────────────────────────────── */}
         <div className="flex px-4 pb-0 gap-1">
           {[
             { id: "discover", label: "Discover", icon: Sparkles },
@@ -420,7 +403,6 @@ export default function SmallSearchedBooks() {
         </div>
       </header>
 
-      {/* ── Content ──────────────────────────────────────────────────────────── */}
       <main className="px-4 py-5 space-y-8 pb-24">
         {fetchError && (
           <motion.div
@@ -433,7 +415,6 @@ export default function SmallSearchedBooks() {
         )}
 
         <AnimatePresence mode="wait">
-          {/* ── Genres view ──────────────────────────────────────────────────── */}
           {view === "genres" && (
             <motion.div
               key="genres"
@@ -476,7 +457,6 @@ export default function SmallSearchedBooks() {
             </motion.div>
           )}
 
-          {/* ── Discover view ─────────────────────────────────────────────────── */}
           {view === "discover" && (
             <motion.div
               key="discover"
@@ -486,13 +466,11 @@ export default function SmallSearchedBooks() {
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               className="space-y-8"
             >
-              {/* Initial loading skeletons */}
               {loading && booksCollection.length === 0 &&
                 Array.from({ length: BATCH_SIZE }).map((_, idx) => (
                   <SectionSkeleton key={idx} />
                 ))}
 
-              {/* Loaded categories */}
               {booksCollection.map(({ category, books }, idx) => (
                 <motion.section
                   key={`${category}-${idx}`}
@@ -528,7 +506,6 @@ export default function SmallSearchedBooks() {
                 </motion.section>
               ))}
 
-              {/* Load more trigger + skeleton row */}
               <div ref={loadRef} className="h-4" />
               {isFetchingMore && (
                 <motion.div
@@ -546,7 +523,6 @@ export default function SmallSearchedBooks() {
                 </motion.div>
               )}
 
-              {/* End of content */}
               {!isFetchingMore && currentIndex >= CATEGORIES.length && booksCollection.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}

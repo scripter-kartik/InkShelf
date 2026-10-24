@@ -2,12 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Navbar from "@/app/components/Navbar";
 import BookDetailClient from "./BookDetailClient";
+import { cache } from "react";
 import { fetchWorkDetail, coverUrl } from "@/lib/openlibrary";
+
+const getBook = cache((id) => fetchWorkDetail(id));
 
 export async function generateMetadata({ params }) {
   const { id } = await params;
   try {
-    const book = await fetchWorkDetail(id);
+    const book = await getBook(id);
     return {
       title: book.title,
       description:
@@ -27,7 +30,7 @@ export default async function BookDetailPage({ params }) {
   const { id } = await params;
   let book;
   try {
-    book = await fetchWorkDetail(id);
+    book = await getBook(id);
   } catch {
     notFound();
   }

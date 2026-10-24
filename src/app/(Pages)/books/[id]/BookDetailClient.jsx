@@ -10,7 +10,7 @@ import gsap from "gsap";
 import dynamic from "next/dynamic";
 import ReactMarkdown from 'react-markdown';
 import ShelfControls from "@/components/ShelfControls";
-import { coverUrl } from "@/lib/openlibrary";
+import { coverUrl, isOpenLibraryId } from "@/lib/openlibrary";
 
 const EpubReaderComponent = dynamic(() => import("@/components/EpubReaderComponent"), { ssr: false });
 
@@ -32,6 +32,7 @@ export default function BookDetailClient({ book, cover }) {
   const [iaLoading, setIaLoading] = useState(false);
   const [epubUrl, setEpubUrl] = useState(null);
   const [gutenbergUrl, setGutenbergUrl] = useState(null);
+  const [sources, setSources] = useState({ epubSource: null, access: null, borrowUrl: null, openLibraryUrl: null });
   const fileInputRef = useRef(null);
 
   const handleEpubUpload = (e) => {
@@ -41,7 +42,7 @@ export default function BookDetailClient({ book, cover }) {
       const url = URL.createObjectURL(file);
       setEpubUrl(url);
       setShowReader(true);
-      setIframeLoaded(true); // Treat epub as immediately ready
+      setIframeLoaded(true);
     }
   };
 
@@ -50,14 +51,21 @@ export default function BookDetailClient({ book, cover }) {
     let cancelled = false;
     setIaLoading(true);
 
-    fetch(`/api/book-sources?title=${encodeURIComponent(book.title)}&author=${encodeURIComponent(book.author || "")}`)
+    const olid = isOpenLibraryId(book.id) ? `&olid=${encodeURIComponent(book.id)}` : "";
+    fetch(`/api/book-sources?title=${encodeURIComponent(book.title)}&author=${encodeURIComponent(book.author || "")}${olid}`)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
         if (data.iaId) setIaId(data.iaId);
         if (data.epubUrl) setGutenbergUrl(data.epubUrl);
+        setSources({
+          epubSource: data.epubSource || null,
+          access: data.access || null,
+          borrowUrl: data.borrowUrl || null,
+          openLibraryUrl: data.openLibraryUrl || null,
+        });
       })
-      .catch(() => {}) // silently fail — user can still upload EPUB
+      .catch(() => {})
       .finally(() => {
         if (!cancelled) setIaLoading(false);
       });
@@ -65,7 +73,7 @@ export default function BookDetailClient({ book, cover }) {
     return () => {
       cancelled = true;
     };
-  }, [book.title, book.author]);
+  }, [book.id, book.title, book.author]);
 
   const handleGetSummary = async () => {
     setIsSummaryLoading(true);
@@ -74,10 +82,15 @@ export default function BookDetailClient({ book, cover }) {
       const res = await fetch("/api/ai-summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: localBook.title, author: localBook.author })
+        body: JSON.stringify({
+          title: localBook.title,
+          author: localBook.author,
+          description: localBook.description || "",
+          subjects: localBook.subjects || [],
+        })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to generate summary");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to generate summary. Please try again.");
       setAiSummary(data.summary);
     } catch (err) {
       setSummaryError(err.message);
@@ -88,6 +101,23 @@ export default function BookDetailClient({ book, cover }) {
 
   const finalEpubUrl = epubUrl || gutenbergUrl;
   const canEmbed = localBook?.embeddable === true || !!iaId || !!gutenbergUrl;
+  const isOpenLibraryBook = localBook?.source === "openlibrary";
+  const canSummarize = localBook?.source !== "mock" && localBook?.title !== "Fallback Offline Book";
+  const externalUrl = isOpenLibraryBook
+    ? localBook.readUrl
+    : localBook.webReaderLink || localBook.readUrl || `https://books.google.com/books?id=${localBook.id}`;
+  const readDisabled = iaLoading && !canEmbed && !finalEpubUrl;
+  const availabilityLabel = gutenbergUrl
+    ? `Full book free${sources.epubSource === "standardebooks" ? " · Standard Ebooks" : " · Project Gutenberg"}`
+    : iaId
+    ? "Full book free · Internet Archive"
+    : localBook?.embeddable === true
+    ? localBook.viewability === "ALL_PAGES"
+      ? "Full book free · Google Books"
+      : "Preview available · Google Books"
+    : sources.borrowUrl
+    ? "Free to borrow · Open Library"
+    : "No free copy found";
   const embedUrl = iaId 
     ? `https://archive.org/embed/${iaId}?ui=embed` 
     : (localBook?.embeddable === true 
@@ -107,6 +137,7 @@ export default function BookDetailClient({ book, cover }) {
               title: data.title,
               author: data.author,
               description: "This book is currently being viewed offline as the Google Books API is rate-limited. Some details may be missing.",
+              descriptionHtml: null,
               subjects: ["Offline Cache"],
             }));
             if (data.coverId) {
@@ -231,17 +262,17 @@ export default function BookDetailClient({ book, cover }) {
                 )}
               </div>
 
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold ${canEmbed
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold ${canEmbed || (!iaLoading && sources.borrowUrl)
                 ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
                 : iaLoading
                 ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                 : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"}`}>
                 {iaLoading ? (
                   <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Checking availability...</>
-                ) : canEmbed ? (
-                  <><Eye className="w-3.5 h-3.5" /> Full preview available</>
+                ) : canEmbed || sources.borrowUrl ? (
+                  <><Eye className="w-3.5 h-3.5" /> {availabilityLabel}</>
                 ) : (
-                  <><EyeOff className="w-3.5 h-3.5" /> No inline preview</>
+                  <><EyeOff className="w-3.5 h-3.5" /> {availabilityLabel}</>
                 )}
               </div>
             </div>
@@ -281,13 +312,15 @@ export default function BookDetailClient({ book, cover }) {
                       fileInputRef.current?.click();
                     }
                   }}
-                  disabled={iaLoading}
+                  disabled={readDisabled}
                   className={`inline-flex items-center gap-2 rounded-full px-6 py-3 font-semibold text-black shadow-lg shadow-green-500/25 transition-colors ${
-                    iaLoading ? "bg-gray-400 cursor-not-allowed opacity-70" : "bg-green-500 hover:bg-green-600"
+                    readDisabled ? "bg-gray-400 cursor-not-allowed opacity-70" : "bg-green-500 hover:bg-green-600"
                   }`}
                 >
-                  {iaLoading ? <RefreshCw className="h-5 w-5 animate-spin" /> : <BookOpen className="h-5 w-5" />}
-                  {finalEpubUrl ? (epubUrl ? "Continue Reading EPUB" : "Read Full Book for Free") : (canEmbed ? "Read on InkShelf" : "Upload EPUB to Read")}
+                  {readDisabled ? <RefreshCw className="h-5 w-5 animate-spin" /> : <BookOpen className="h-5 w-5" />}
+                  {readDisabled
+                    ? "Finding free copies…"
+                    : finalEpubUrl ? (epubUrl ? "Continue Reading EPUB" : "Read Full Book for Free") : (canEmbed ? "Read on InkShelf" : "Upload EPUB to Read")}
                 </motion.button>
                 
                 {canEmbed && !epubUrl && (
@@ -301,16 +334,30 @@ export default function BookDetailClient({ book, cover }) {
                   </motion.button>
                 )}
 
+                {!iaLoading && sources.borrowUrl && !finalEpubUrl && !iaId && (
+                  <motion.a
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.97 }}
+                    href={sources.borrowUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full border-2 border-green-500 px-5 py-2.5 font-semibold text-green-700 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-900/20 transition-colors"
+                  >
+                    <BookMarked className="h-5 w-5" />
+                    Borrow free on Open Library
+                  </motion.a>
+                )}
+
                 <motion.a
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.97 }}
-                  href={localBook.webReaderLink || localBook.readUrl || `https://books.google.com/books?id=${localBook.id}`}
+                  href={externalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 rounded-full border-2 border-gray-400 px-5 py-2.5 font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800 transition-colors"
                 >
                   <ExternalLink className="h-5 w-5" />
-                  Open on Google Books
+                  {isOpenLibraryBook ? "Open on Open Library" : "Open on Google Books"}
                 </motion.a>
               </div>
 
@@ -319,13 +366,19 @@ export default function BookDetailClient({ book, cover }) {
                   <h2 className="mb-3 text-xl font-bold text-gray-900 dark:text-white font-winky">
                     About this book
                   </h2>
-                  <p className="whitespace-pre-line leading-relaxed text-gray-700 dark:text-gray-300">
-                    {localBook.description}
-                  </p>
+                  {localBook.descriptionHtml ? (
+                    <div
+                      className="prose prose-gray dark:prose-invert max-w-none leading-relaxed text-gray-700 dark:text-gray-300 prose-p:my-3"
+                      dangerouslySetInnerHTML={{ __html: localBook.descriptionHtml }}
+                    />
+                  ) : (
+                    <p className="whitespace-pre-line leading-relaxed text-gray-700 dark:text-gray-300">
+                      {localBook.description}
+                    </p>
+                  )}
                 </div>
               )}
 
-              {/* AI Summary Section */}
               <div className="pt-8">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white font-winky flex items-center gap-2">
@@ -334,14 +387,20 @@ export default function BookDetailClient({ book, cover }) {
                   </h2>
                 </div>
                 
-                {!aiSummary && !isSummaryLoading && (
+                {!canSummarize && (
+                  <p className="p-6 rounded-2xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800 text-center text-sm text-gray-500 dark:text-gray-400">
+                    AI summaries are only available for real catalogue books. This is a placeholder shown while the book service is unreachable.
+                  </p>
+                )}
+
+                {canSummarize && !aiSummary && !isSummaryLoading && (
                   <motion.div 
                     whileHover={{ scale: 1.01 }}
                     className="p-6 rounded-2xl bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-100 dark:border-purple-800/30 flex flex-col items-center text-center shadow-inner"
                   >
                     <Sparkles className="w-8 h-8 text-purple-400 mb-3" />
                     <p className="text-gray-700 dark:text-gray-300 font-medium mb-4 max-w-md">
-                      Get a comprehensive, personalized summary of this book generated by Google AI Studio.
+                      Get a comprehensive summary of this book generated by Google Gemini.
                     </p>
                     <motion.button
                       whileHover={{ scale: 1.05 }}

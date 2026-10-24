@@ -43,7 +43,6 @@ export default function ShelfControls({ book }) {
     return () => { active = false; };
   }, [status, book.id]);
 
-  /* GSAP progress bar animation */
   useEffect(() => {
     const el = progressFillRef.current;
     if (!el) return;
@@ -54,13 +53,18 @@ export default function ShelfControls({ book }) {
     });
   }, [progress]);
 
+  const latestRef = useRef({ favorite, shelfStatus, progress, rating, notes });
+  useEffect(() => {
+    latestRef.current = { favorite, shelfStatus, progress, rating, notes };
+  }, [favorite, shelfStatus, progress, rating, notes]);
+
   const persist = async (patch) => {
     setSaving(true);
+    const current = latestRef.current;
     try {
-      const mergedStatus = patch.status !== undefined ? patch.status : shelfStatus;
-      
-      // If we are clearing both favorite and status, just delete it.
-      const isFav = patch.favorite !== undefined ? patch.favorite : favorite;
+      const mergedStatus = patch.status !== undefined ? patch.status : current.shelfStatus;
+
+      const isFav = patch.favorite !== undefined ? patch.favorite : current.favorite;
       if (!isFav && !mergedStatus) {
         const res = await fetch(`/api/shelf?bookKey=${encodeURIComponent(book.id)}`, { method: "DELETE" });
         if (!res.ok) throw new Error();
@@ -73,12 +77,11 @@ export default function ShelfControls({ book }) {
         coverId: book.coverId,
         author: book.author,
         favorite: isFav,
-        progress: patch.progress !== undefined ? patch.progress : progress,
-        rating: patch.rating !== undefined ? patch.rating : rating,
-        notes: patch.notes !== undefined ? patch.notes : notes,
+        progress: patch.progress !== undefined ? patch.progress : current.progress,
+        rating: patch.rating !== undefined ? patch.rating : current.rating,
+        notes: patch.notes !== undefined ? patch.notes : current.notes,
       };
       
-      // Only include status if it's truthy to avoid Mongoose enum validation errors on ""
       if (mergedStatus) {
         bodyData.status = mergedStatus;
       }
@@ -104,7 +107,6 @@ export default function ShelfControls({ book }) {
     const next = !favorite;
     setFavorite(next);
 
-    /* GSAP heart burst */
     const el = heartRef.current;
     if (el && next) {
       gsap.fromTo(
@@ -178,7 +180,6 @@ export default function ShelfControls({ book }) {
       className="flex flex-col gap-4"
     >
       <div className="flex flex-wrap items-center gap-3">
-        {/* Favorite button */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.92 }}
@@ -199,7 +200,6 @@ export default function ShelfControls({ book }) {
           {favorite ? "Favorited" : "Favorite"}
         </motion.button>
 
-        {/* Status select */}
         <div className="relative">
           <motion.select
             whileFocus={{ scale: 1.02 }}
@@ -219,7 +219,6 @@ export default function ShelfControls({ book }) {
         </div>
       </div>
 
-      {/* Progress section */}
       <AnimatePresence>
         {shelfStatus === "reading" && (
           <motion.div
@@ -254,7 +253,6 @@ export default function ShelfControls({ book }) {
                 disabled={saving}
                 className="h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-200 accent-green-500 disabled:opacity-60 dark:bg-gray-700"
               />
-              {/* Custom GSAP-animated bar */}
               <div className="mt-2 h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
                 <div
                   ref={progressFillRef}
@@ -270,7 +268,6 @@ export default function ShelfControls({ book }) {
         )}
       </AnimatePresence>
 
-      {/* Rating + Notes */}
       <AnimatePresence>
         {shelfStatus && (
           <motion.div

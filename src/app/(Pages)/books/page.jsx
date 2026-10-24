@@ -105,6 +105,8 @@ export default function BooksPage() {
         const existingCategories = new Set(prev.map((e) => e.category));
         return [...prev, ...result.filter((e) => !existingCategories.has(e.category))];
       });
+      const upcoming = CATEGORIES.slice(endIndex, endIndex + PAGE_SIZE);
+      if (upcoming.length > 0) fetchBooksByCategories(upcoming).catch(() => {});
     } catch (error) {
       console.error("Error loading books:", error.message);
     } finally {
@@ -129,7 +131,7 @@ export default function BooksPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 overflow-x-hidden relative">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 overflow-x-clip relative">
       <Navbar />
 
       <div ref={bgElementsRef} className="absolute inset-0 pointer-events-none overflow-hidden z-0">

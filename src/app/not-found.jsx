@@ -8,7 +8,6 @@ export default function NotFound() {
   const numRef = useRef(null);
   const containerRef = useRef(null);
 
-  /* GSAP glitch / jitter on the 404 */
   useEffect(() => {
     const el = numRef.current;
     if (!el) return;
@@ -18,7 +17,6 @@ export default function NotFound() {
         { opacity: 0, scale: 0.4, y: 40 },
         { opacity: 1, scale: 1, y: 0, duration: 0.8, ease: "back.out(2)", delay: 0.1 }
       );
-      /* periodic glitch */
       gsap.to(el, {
         x: "random(-4, 4)",
         skewX: "random(-3, 3)",
@@ -37,7 +35,6 @@ export default function NotFound() {
       ref={containerRef}
       className="flex min-h-screen flex-col items-center justify-center gap-5 bg-white px-4 text-center dark:bg-gray-950"
     >
-      {/* Animated 404 */}
       <p
         ref={numRef}
         className="font-lato text-8xl md:text-9xl font-extrabold bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent select-none"

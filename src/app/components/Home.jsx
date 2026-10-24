@@ -143,6 +143,22 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const title = titleRef.current;
+    if (!title) return;
+    const paint = () => {
+      const width = title.offsetWidth;
+      title.querySelectorAll(".char").forEach((el) => {
+        el.style.backgroundSize = `${width}px 100%`;
+        el.style.backgroundPosition = `${-el.offsetLeft}px 0`;
+      });
+    };
+    paint();
+    window.addEventListener("resize", paint);
+    document.fonts?.ready.then(paint);
+    return () => window.removeEventListener("resize", paint);
+  }, []);
+
+  useEffect(() => {
     if (!mounted) return;
 
     const ctx = gsap.context(() => {
@@ -166,12 +182,11 @@ export default function Home() {
         const chars = titleRef.current.querySelectorAll(".char");
         gsap.fromTo(
           chars,
-          { opacity: 0, y: 80, rotateX: -90, transformOrigin: "50% 50% -30px" },
+          { opacity: 0, y: 40 },
           {
             opacity: 1,
             y: 0,
-            rotateX: 0,
-            duration: 0.7,
+            duration: 0.6,
             stagger: 0.03,
             ease: "back.out(2)",
             delay: 0.2,
@@ -433,7 +448,7 @@ export default function Home() {
   const chars = heroTitle.split("").map((char, i) => (
     <span
       key={i}
-      className="char inline-block"
+      className="char inline-block bg-gradient-to-r from-green-400 via-green-500 to-black dark:to-white bg-clip-text text-transparent"
       style={{ display: char === " " ? "inline" : "inline-block" }}
     >
       {char === " " ? "\u00A0" : char}
@@ -441,7 +456,7 @@ export default function Home() {
   ));
 
   return (
-    <div ref={pageRef} className="relative bg-white dark:bg-gray-950 overflow-x-hidden">
+    <div ref={pageRef} className="relative bg-white dark:bg-gray-950 overflow-x-clip">
       <div
         ref={scrollLineRef}
         className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-green-400 via-green-500 to-emerald-600 z-[60] origin-left"
@@ -481,14 +496,22 @@ export default function Home() {
           className="absolute top-0 right-0 h-full w-auto object-cover z-0 pointer-events-none opacity-60"
           style={{ y: parallaxY }}
         />
-        <motion.img
-          src="/Bird.png"
-          alt=""
-          initial={{ opacity: 0, x: -80 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 1.4, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="absolute top-0 left-0 h-full w-auto object-contain z-0 hidden 2xl:block pointer-events-none opacity-70"
-        />
+        <div className="absolute inset-y-0 left-[2vw] z-0 hidden xl:flex items-center pointer-events-none">
+          <motion.div
+            initial={{ opacity: 0, x: -60 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 1.4, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="w-[clamp(200px,calc((100vw-746px)/2-2vw-32px),520px)]"
+          >
+            <motion.img
+              src="/Bird.png"
+              alt=""
+              animate={{ y: [0, -16, 0], rotate: [0, -2, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+              className="w-full h-auto opacity-85 drop-shadow-[0_0_40px_rgba(74,222,128,0.35)]"
+            />
+          </motion.div>
+        </div>
 
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(74,222,128,0.12),transparent)] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(74,222,128,0.07),transparent)] pointer-events-none" />
 
@@ -505,8 +528,7 @@ export default function Home() {
 
           <h1
             ref={titleRef}
-            className="bg-gradient-to-r from-green-400 via-green-500 to-black dark:to-white bg-clip-text text-transparent font-lato font-extrabold text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-tight tracking-tight select-none"
-            style={{ perspective: "500px" }}
+            className="relative font-lato font-extrabold text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-tight tracking-tight select-none"
           >
             {chars}
           </h1>

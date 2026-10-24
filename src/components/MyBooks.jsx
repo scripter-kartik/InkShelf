@@ -46,7 +46,6 @@ export default function MyBooks({ mode }) {
   const [tab, setTab] = useState("all");
   const headerRef = useRef(null);
 
-  /* GSAP header entrance */
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
@@ -77,13 +76,16 @@ export default function MyBooks({ mode }) {
   }, [status, isFavorites]);
 
   const remove = async (bookKey) => {
+    const previous = items;
     setItems((prev) => prev.filter((i) => i.bookKey !== bookKey));
     try {
-      await fetch(`/api/shelf?bookKey=${encodeURIComponent(bookKey)}`, {
+      const res = await fetch(`/api/shelf?bookKey=${encodeURIComponent(bookKey)}`, {
         method: "DELETE",
       });
+      if (!res.ok) throw new Error();
       toast("Removed from shelf", "success");
     } catch {
+      setItems(previous);
       toast("Couldn't remove", "error");
     }
   };
@@ -146,7 +148,6 @@ export default function MyBooks({ mode }) {
           />
         ) : (
           <>
-            {/* Tab strip */}
             {!isFavorites && (
               <div className="mb-6 flex flex-wrap gap-2">
                 {[

@@ -41,7 +41,6 @@ describe("MyBooks — shelf mode", () => {
         useSession.mockReturnValue({ status: "authenticated" });
         mockFetch.mockReturnValue(new Promise(() => { }));
         render(<MyBooks mode="shelf"/>);
-        // Loading state renders skeleton cards with animate-pulse, not a text node
         const skeletons = document.querySelectorAll(".animate-pulse");
         expect(skeletons.length).toBeGreaterThan(0);
     });

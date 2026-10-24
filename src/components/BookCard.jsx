@@ -4,7 +4,9 @@ import { useRef } from "react";
 import { motion } from "framer-motion";
 import gsap from "gsap";
 import { BookOpen } from "lucide-react";
-import { coverUrl, workId } from "@/lib/openlibrary";
+import { coverUrl, workId, isOpenLibraryId } from "@/lib/openlibrary";
+
+const preloaded = new Set();
 
 export default function BookCard({ book }) {
   const id = workId(book.key);
@@ -17,6 +19,16 @@ export default function BookCard({ book }) {
 
   const imgRef = useRef(null);
   const cardRef = useRef(null);
+  const preloadTimer = useRef(null);
+
+  const preload = (delay) => {
+    if (preloaded.has(id) || String(id).startsWith("mock_")) return;
+    clearTimeout(preloadTimer.current);
+    preloadTimer.current = setTimeout(() => {
+      preloaded.add(id);
+      fetch(`/api/books?type=detail&id=${encodeURIComponent(id)}`).catch(() => {});
+    }, delay);
+  };
 
   const handleMouseMove = (e) => {
     const el = cardRef.current;
@@ -35,6 +47,7 @@ export default function BookCard({ book }) {
   };
 
   const handleMouseLeave = () => {
+    clearTimeout(preloadTimer.current);
     gsap.to(cardRef.current, {
       rotateY: 0,
       rotateX: 0,
@@ -55,6 +68,10 @@ export default function BookCard({ book }) {
           })
         );
       } catch (err) {}
+      const olid = isOpenLibraryId(id) ? `&olid=${encodeURIComponent(id)}` : "";
+      fetch(
+        `/api/book-sources?title=${encodeURIComponent(book.title || "")}&author=${encodeURIComponent(author)}${olid}`
+      ).catch(() => {});
     }
   };
 
@@ -67,6 +84,9 @@ export default function BookCard({ book }) {
       <Link
         href={`/books/${id}`}
         ref={cardRef}
+        onMouseEnter={() => preload(150)}
+        onFocus={() => preload(150)}
+        onTouchStart={() => preload(0)}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onClick={handleSaveMeta}

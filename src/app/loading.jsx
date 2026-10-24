@@ -10,7 +10,6 @@ export default function Loading() {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      /* Pulsing book icon */
       if (bookRef.current) {
         gsap.to(bookRef.current, {
           scale: 1.12,
@@ -20,7 +19,6 @@ export default function Loading() {
           ease: "sine.inOut",
         });
       }
-      /* Staggered dots */
       const dots = [dot1.current, dot2.current, dot3.current].filter(Boolean);
       gsap.to(dots, {
         y: -10,
@@ -36,10 +34,8 @@ export default function Loading() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-white dark:bg-gray-950">
-      {/* Book icon */}
       <div ref={bookRef} className="text-6xl select-none">📚</div>
 
-      {/* Bouncing dots */}
       <div className="flex items-center gap-2">
         <div ref={dot1} className="w-3 h-3 rounded-full bg-green-400" />
         <div ref={dot2} className="w-3 h-3 rounded-full bg-green-500" />

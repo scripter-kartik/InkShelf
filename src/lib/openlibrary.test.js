@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { coverUrl, workId } from "@/lib/openlibrary";
+import { coverUrl, workId, parseDescription } from "@/lib/openlibrary";
 describe("coverUrl", () => {
     it("returns a Google Books https URL unchanged (after http→https upgrade)", () => {
         const input = "http://books.google.com/books/content?id=abc&printsec=frontcover";
@@ -42,5 +42,32 @@ describe("workId", () => {
     });
     it("handles empty input", () => {
         expect(workId()).toBe("");
+    });
+});
+describe("parseDescription", () => {
+    it("keeps basic formatting tags and builds readable plain text", () => {
+        const { html, text } = parseDescription("<p><b>Bold</b> and <i>italic</i></p><p>Second<br>line</p>");
+        expect(html).toBe("<p><b>Bold</b> and <i>italic</i></p><p>Second<br>line</p>");
+        expect(text).toBe("Bold and italic\n\nSecond\nline");
+    });
+    it("decodes entities for text and re-escapes them for html", () => {
+        const { html, text } = parseDescription("Tom &amp; Jerry &#39;quoted&#39; &lt;3");
+        expect(text).toBe("Tom & Jerry 'quoted' <3");
+        expect(html).toBe("Tom &amp; Jerry 'quoted' &lt;3");
+    });
+    it("drops disallowed tags and all attributes", () => {
+        const { html } = parseDescription('<b onclick="alert(1)">Hi</b><img src=x onerror="alert(1)"><a href="javascript:alert(1)">link</a><script>alert(1)</script>');
+        expect(html).toBe("<b>Hi</b>linkalert(1)");
+        expect(html).not.toMatch(/onclick|onerror|javascript:|<img|<a|<script/i);
+    });
+    it("escapes stray angle brackets that are not tags", () => {
+        expect(parseDescription("1 < 2 and 3 > 2").html).toBe("1 &lt; 2 and 3 &gt; 2");
+    });
+    it("turns escaped allowlisted tags into real ones, but keeps escaped dangerous tags as text", () => {
+        const { html } = parseDescription("<p>One&lt;br&gt;Two &lt;b&gt;bold&lt;/b&gt; &lt;script&gt;x&lt;/script&gt;</p>");
+        expect(html).toBe("<p>One<br>Two <b>bold</b> &lt;script&gt;x&lt;/script&gt;</p>");
+    });
+    it("handles empty input", () => {
+        expect(parseDescription()).toEqual({ html: "", text: "" });
     });
 });

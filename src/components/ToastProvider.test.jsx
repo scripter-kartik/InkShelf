@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import { ToastProvider, useToast } from "@/components/ToastProvider";
 
-// Mock framer-motion so AnimatePresence removes children immediately on exit
-// (no CSS transition delay) making fake-timer-based dismissal tests reliable.
 vi.mock("framer-motion", () => {
     const React = require("react");
     return {

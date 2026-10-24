@@ -1,7 +1,7 @@
 import { GENRES } from "@/lib/constants";
 const BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
 export default function sitemap() {
-    const staticRoutes = ["", "/books", "/favorites", "/shelf", "/profile"].map((path) => ({
+    const staticRoutes = ["", "/books"].map((path) => ({
         url: `${BASE_URL}${path}`,
         lastModified: new Date(),
         changeFrequency: "weekly",
