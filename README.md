@@ -57,6 +57,8 @@ src/
 │   │   ├── auth/[...nextauth] # NextAuth handler
 │   │   ├── register          # Credential sign-up
 │   │   ├── shelf             # GET/POST/DELETE shelf items
+│   │   ├── books             # Cached book lists, search, suggestions
+│   │   ├── password          # Forgot / reset password
 │   │   ├── ai-summary        # Gemini book summaries
 │   │   ├── book-sources      # Finds Internet Archive / Gutenberg copies
 │   │   └── proxy-epub        # Same-origin proxy for Gutenberg EPUBs
@@ -103,6 +105,8 @@ npm run dev               # http://localhost:3000
 | `GOOGLE_ID` / `GOOGLE_SECRET` | optional | Google OAuth login |
 | `GEMINI_API_KEY` | optional | AI book summaries |
 | `NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY` | optional | Higher Google Books rate limit |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | recommended in production | Shared cache and rate limits across server instances |
+| `RESEND_API_KEY` / `EMAIL_FROM` | optional | Sends password-reset emails (dev prints the link to the terminal) |
 
 \* Without `MONGODB_URI` the app runs in browse-only mode.
 

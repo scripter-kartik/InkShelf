@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
+import { cacheGet, cacheSet, rateLimit, clientIp } from '@/lib/store';
 
 const MODELS = [
   ...(process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []),
@@ -12,22 +13,7 @@ export const maxDuration = 60;
 
 const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60 * 60 * 1000;
-const hits = new Map();
-
-const CACHE_MAX = 500;
-const summaryCache = new Map();
-
-function isRateLimited(ip) {
-  const now = Date.now();
-  const recent = (hits.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
-  if (recent.length >= RATE_LIMIT) {
-    hits.set(ip, recent);
-    return true;
-  }
-  recent.push(now);
-  hits.set(ip, recent);
-  return false;
-}
+const SUMMARY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function buildPrompt(title, author, description, subjects) {
   const context = [
@@ -106,8 +92,8 @@ export async function POST(req) {
       return NextResponse.json({ error: "Title or author is too long" }, { status: 400 });
     }
 
-    const cacheKey = `${title.toLowerCase()}|${author.toLowerCase()}`;
-    const cached = summaryCache.get(cacheKey);
+    const cacheKey = `ai-summary:${title.toLowerCase()}|${author.toLowerCase()}`;
+    const cached = await cacheGet(cacheKey);
     if (cached) {
       return NextResponse.json({ summary: cached });
     }
@@ -116,18 +102,15 @@ export async function POST(req) {
       return NextResponse.json({ error: "AI summaries are not configured (missing GEMINI_API_KEY)." }, { status: 500 });
     }
 
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
-    if (isRateLimited(ip)) {
+    const { allowed } = await rateLimit(`ai:${clientIp(req.headers)}`, RATE_LIMIT, RATE_WINDOW_MS);
+    if (!allowed) {
       return NextResponse.json({ error: "Too many summary requests. Please try again later." }, { status: 429 });
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const summary = await generateSummary(ai, buildPrompt(title, author, description, subjects));
 
-    if (summaryCache.size >= CACHE_MAX) {
-      summaryCache.delete(summaryCache.keys().next().value);
-    }
-    summaryCache.set(cacheKey, summary);
+    await cacheSet(cacheKey, summary, SUMMARY_TTL_MS);
 
     return NextResponse.json({ summary });
   } catch (error) {

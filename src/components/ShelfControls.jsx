@@ -1,12 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, animate } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { Heart, ChevronDown } from "lucide-react";
 import { SHELF_STATUSES } from "@/lib/constants";
 import { useToast } from "@/components/ToastProvider";
 import StarRating from "@/components/StarRating";
-import gsap from "gsap";
 
 export default function ShelfControls({ book }) {
   const { data: session, status } = useSession();
@@ -46,11 +45,7 @@ export default function ShelfControls({ book }) {
   useEffect(() => {
     const el = progressFillRef.current;
     if (!el) return;
-    gsap.to(el, {
-      width: `${progress}%`,
-      duration: 0.8,
-      ease: "power3.out",
-    });
+    animate(el, { width: `${progress}%` }, { duration: 0.8, ease: [0.22, 1, 0.36, 1] });
   }, [progress]);
 
   const latestRef = useRef({ favorite, shelfStatus, progress, rating, notes });
@@ -80,11 +75,8 @@ export default function ShelfControls({ book }) {
         progress: patch.progress !== undefined ? patch.progress : current.progress,
         rating: patch.rating !== undefined ? patch.rating : current.rating,
         notes: patch.notes !== undefined ? patch.notes : current.notes,
+        status: mergedStatus || null,
       };
-      
-      if (mergedStatus) {
-        bodyData.status = mergedStatus;
-      }
 
       const res = await fetch("/api/shelf", {
         method: "POST",
@@ -109,10 +101,10 @@ export default function ShelfControls({ book }) {
 
     const el = heartRef.current;
     if (el && next) {
-      gsap.fromTo(
+      animate(
         el,
-        { scale: 0.5, rotate: -20 },
-        { scale: 1.3, rotate: 0, duration: 0.3, ease: "back.out(3)", yoyo: true, repeat: 1 }
+        { scale: [0.5, 1.3, 1], rotate: [-20, 0, 0] },
+        { duration: 0.6, ease: "easeOut" }
       );
     }
 
@@ -150,22 +142,34 @@ export default function ShelfControls({ book }) {
     }, 1000);
   };
 
-  const handleProgressChange = (e) => {
-    const value = Number(e.target.value);
+  const saveProgress = (value, delay) => {
     setProgress(value);
     clearTimeout(progressTimerRef.current);
     progressTimerRef.current = setTimeout(async () => {
       const ok = await persist({ progress: value });
       if (ok && value === 100) toast("🎉 Finished reading!", "success");
-    }, 600);
+    }, delay);
   };
+
+  const handleProgressChange = (e) => saveProgress(Number(e.target.value), 600);
+
+  useEffect(() => {
+    const onReaderProgress = (e) => {
+      const { bookKey, progress: value } = e.detail || {};
+      if (bookKey !== book.id || latestRef.current.shelfStatus !== "reading") return;
+      if (value === latestRef.current.progress) return;
+      saveProgress(value, 1500);
+    };
+    window.addEventListener("inkshelf:reading-progress", onReaderProgress);
+    return () => window.removeEventListener("inkshelf:reading-progress", onReaderProgress);
+  });
 
   if (status === "unauthenticated") {
     return (
       <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="rounded-xl border-2 border-dashed border-gray-300 p-5 text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400"
+        className="rounded-xl border-2 border-dashed border-gray-300 p-5 text-sm text-gray-500 dark:border-ink-600 dark:text-ink-400"
       >
         Log in to add this book to your favorites or reading shelf.
       </motion.p>
@@ -188,7 +192,7 @@ export default function ShelfControls({ book }) {
           className={`flex items-center gap-2 rounded-full border-2 px-5 py-2.5 font-semibold transition-colors disabled:opacity-60 ${
             favorite
               ? "border-red-500 bg-red-500 text-white shadow-red-200 dark:shadow-red-900 shadow-lg"
-              : "border-gray-400 text-gray-700 hover:border-red-400 dark:text-gray-200"
+              : "border-gray-400 text-gray-700 hover:border-red-400 dark:text-ink-200"
           }`}
         >
           <span ref={heartRef} className="inline-flex">
@@ -206,7 +210,7 @@ export default function ShelfControls({ book }) {
             value={shelfStatus}
             onChange={(e) => changeStatus(e.target.value)}
             disabled={saving}
-            className="appearance-none rounded-full border-2 border-gray-400 bg-white pl-4 pr-10 py-2.5 font-semibold text-gray-700 outline-none disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 cursor-pointer hover:border-green-500 transition-colors"
+            className="appearance-none rounded-full border-2 border-gray-400 bg-white pl-4 pr-10 py-2.5 font-semibold text-gray-700 outline-none disabled:opacity-60 dark:border-ink-600 dark:bg-ink-800 dark:text-ink-200 cursor-pointer hover:border-green-500 transition-colors"
           >
             <option value="">Add to shelf…</option>
             {SHELF_STATUSES.map((s) => (
@@ -214,7 +218,7 @@ export default function ShelfControls({ book }) {
             ))}
           </motion.select>
           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-            <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+            <ChevronDown className="h-4 w-4 text-gray-500 dark:text-ink-400" />
           </div>
         </div>
       </div>
@@ -228,9 +232,9 @@ export default function ShelfControls({ book }) {
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden"
           >
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-ink-700 dark:bg-ink-800/50">
               <div className="mb-2 flex items-center justify-between">
-                <label htmlFor="reading-progress" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="reading-progress" className="text-sm font-medium text-gray-700 dark:text-ink-300">
                   Reading progress
                 </label>
                 <motion.span
@@ -251,9 +255,9 @@ export default function ShelfControls({ book }) {
                 value={progress}
                 onChange={handleProgressChange}
                 disabled={saving}
-                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-200 accent-green-500 disabled:opacity-60 dark:bg-gray-700"
+                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-gray-200 accent-green-500 disabled:opacity-60 dark:bg-ink-700"
               />
-              <div className="mt-2 h-1.5 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+              <div className="mt-2 h-1.5 w-full rounded-full bg-gray-200 dark:bg-ink-700 overflow-hidden">
                 <div
                   ref={progressFillRef}
                   className="h-full rounded-full bg-gradient-to-r from-green-400 to-green-600"
@@ -277,11 +281,11 @@ export default function ShelfControls({ book }) {
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden"
           >
-            <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900/40">
+            <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-ink-800 dark:bg-ink-900/40">
               <StarRating rating={rating} onChange={changeRating} disabled={saving} />
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <label htmlFor="personal-notes" className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  <label htmlFor="personal-notes" className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-ink-400">
                     Personal Notes
                   </label>
                   <AnimatePresence mode="wait">
@@ -315,7 +319,7 @@ export default function ShelfControls({ book }) {
                   placeholder="Write your review, favorite quotes, or thoughts on this book..."
                   disabled={saving}
                   rows={4}
-                  className="w-full rounded-xl border border-gray-300 bg-gray-50 p-3 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 transition-all"
+                  className="w-full rounded-xl border border-gray-300 bg-gray-50 p-3 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-100 transition-all"
                 />
               </div>
             </div>

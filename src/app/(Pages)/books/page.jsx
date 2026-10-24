@@ -15,6 +15,9 @@ if (typeof window !== "undefined") {
 
 const PAGE_SIZE = 3;
 
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 const sectionVariants = {
   hidden: { opacity: 0, y: 40 },
   show: {
@@ -48,7 +51,7 @@ export default function BooksPage() {
 
   useEffect(() => {
     const el = headingRef.current;
-    if (!el) return;
+    if (!el || prefersReducedMotion()) return;
     gsap.fromTo(
       el,
       { opacity: 0, y: -30 },
@@ -58,7 +61,7 @@ export default function BooksPage() {
 
   useEffect(() => {
     const bgContainer = bgElementsRef.current;
-    if (!bgContainer) return;
+    if (!bgContainer || prefersReducedMotion()) return;
     const items = bgContainer.querySelectorAll(".bg-floating");
     items.forEach((item, i) => {
       gsap.fromTo(item,
@@ -131,7 +134,7 @@ export default function BooksPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 overflow-x-clip relative">
+    <div className="min-h-screen bg-gray-50 dark:bg-ink-950 overflow-x-clip relative">
       <Navbar />
 
       <div ref={bgElementsRef} className="absolute inset-0 pointer-events-none overflow-hidden z-0">
@@ -158,7 +161,7 @@ export default function BooksPage() {
         <h1 className="text-3xl md:text-5xl font-extrabold font-winky text-gray-900 dark:text-white leading-tight">
           Browse Books
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-lato">
+        <p className="text-sm text-gray-500 dark:text-ink-400 mt-1 font-lato">
           Discover your next great read by category
         </p>
       </div>
@@ -174,7 +177,7 @@ export default function BooksPage() {
               initial="hidden"
               whileInView="show"
               viewport={{ once: true, margin: "-60px" }}
-              className="bg-green-400 dark:bg-green-900/50 rounded-2xl p-4 md:p-6 overflow-hidden border border-black/10 dark:border-green-800/20 shadow-lg hover:shadow-xl transition-shadow duration-300"
+              className="bg-green-400 dark:bg-ink-900/80 rounded-2xl p-4 md:p-6 overflow-hidden border border-black/10 dark:border-white/5 dark:ring-1 dark:ring-inset dark:ring-green-400/10 shadow-lg hover:shadow-xl transition-shadow duration-300"
             >
               <SectionHeader label={category} idx={idx} />
 
@@ -206,16 +209,16 @@ export default function BooksPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: idx * 0.1 }}
-                className="bg-green-400/30 dark:bg-green-900/20 rounded-2xl p-4 md:p-6"
+                className="bg-green-400/30 dark:bg-ink-900/60 rounded-2xl p-4 md:p-6"
               >
-                <div className="h-8 w-48 bg-green-300/50 dark:bg-green-800/50 rounded-lg animate-pulse mb-5" />
+                <div className="h-8 w-48 bg-green-300/50 dark:bg-ink-800 rounded-lg animate-pulse mb-5" />
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
                   {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-md animate-pulse">
-                      <div className="w-full aspect-[2/3] bg-gray-200 dark:bg-gray-700" />
+                    <div key={i} className="rounded-2xl overflow-hidden bg-white dark:bg-ink-800 shadow-md animate-pulse">
+                      <div className="w-full aspect-[2/3] bg-gray-200 dark:bg-ink-700" />
                       <div className="p-2.5 space-y-1.5">
-                        <div className="h-2.5 w-3/4 bg-gray-200 dark:bg-gray-700 rounded" />
-                        <div className="h-2 w-1/2 bg-gray-200 dark:bg-gray-700 rounded" />
+                        <div className="h-2.5 w-3/4 bg-gray-200 dark:bg-ink-700 rounded" />
+                        <div className="h-2 w-1/2 bg-gray-200 dark:bg-ink-700 rounded" />
                       </div>
                     </div>
                   ))}
@@ -235,7 +238,7 @@ function SectionHeader({ label, idx }) {
 
   useEffect(() => {
     const el = lineRef.current;
-    if (!el) return;
+    if (!el || prefersReducedMotion()) return;
     const ctx = gsap.context(() => {
       ScrollTrigger.create({
         trigger: el,
@@ -256,6 +259,10 @@ function SectionHeader({ label, idx }) {
   useEffect(() => {
     const el = textRef.current;
     if (!el) return;
+    if (prefersReducedMotion()) {
+      el.style.opacity = "1";
+      return;
+    }
     const ctx = gsap.context(() => {
       ScrollTrigger.create({
         trigger: el,
@@ -280,7 +287,7 @@ function SectionHeader({ label, idx }) {
       </h2>
       <div
         ref={lineRef}
-        className="mt-1 h-0.5 w-16 bg-black/30 dark:bg-white/30 rounded-full"
+        className="mt-1 h-0.5 w-16 bg-black/30 dark:bg-green-400/60 rounded-full"
       />
     </div>
   );

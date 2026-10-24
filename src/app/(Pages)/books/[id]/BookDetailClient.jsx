@@ -1,12 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, animate, stagger } from "framer-motion";
 import {
   BookOpen, ExternalLink, ArrowLeft, RefreshCw, AlertCircle,
   X, Maximize2, Minimize2, Eye, EyeOff, Calendar, Hash, Globe, BookMarked, Sparkles
 } from "lucide-react";
-import gsap from "gsap";
 import dynamic from "next/dynamic";
 import ReactMarkdown from 'react-markdown';
 import ShelfControls from "@/components/ShelfControls";
@@ -151,23 +150,26 @@ export default function BookDetailClient({ book, cover }) {
   }, [book]);
 
   useEffect(() => {
-    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+    const controls = [];
     if (coverRef.current) {
-      tl.fromTo(
-        coverRef.current,
-        { opacity: 0, x: -50, rotateY: -20 },
-        { opacity: 1, x: 0, rotateY: 0, duration: 0.85 }
+      controls.push(
+        animate(
+          coverRef.current,
+          { opacity: [0, 1], x: [-50, 0], rotateY: [-20, 0] },
+          { duration: 0.85, ease: [0.22, 1, 0.36, 1] }
+        )
       );
     }
     if (contentRef.current) {
-      const children = Array.from(contentRef.current.children);
-      tl.fromTo(
-        children,
-        { opacity: 0, y: 28 },
-        { opacity: 1, y: 0, duration: 0.5, stagger: 0.07 },
-        "-=0.55"
+      controls.push(
+        animate(
+          Array.from(contentRef.current.children),
+          { opacity: [0, 1], y: [28, 0] },
+          { duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: stagger(0.07, { startDelay: 0.3 }) }
+        )
       );
     }
+    return () => controls.forEach((c) => c.stop());
   }, [localBook]);
 
   return (
@@ -201,7 +203,7 @@ export default function BookDetailClient({ book, cover }) {
           <h1 className="text-2xl md:text-3xl font-extrabold font-winky text-gray-900 dark:text-white mb-4">
             API Rate Limit Reached
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 font-lato leading-relaxed mb-8 max-w-md mx-auto">
+          <p className="text-gray-600 dark:text-ink-400 font-lato leading-relaxed mb-8 max-w-md mx-auto">
             The Google Books API is temporarily rate-limited. Please restart your dev server to reload your API key, or try again in a moment.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -230,32 +232,32 @@ export default function BookDetailClient({ book, cover }) {
                   style={{ transformStyle: "preserve-3d" }}
                 />
               ) : (
-                <div className="flex aspect-[2/3] w-full items-center justify-center rounded-2xl bg-gray-200 dark:bg-gray-800 shadow-lg">
+                <div className="flex aspect-[2/3] w-full items-center justify-center rounded-2xl bg-gray-200 dark:bg-ink-800 shadow-lg">
                   <BookOpen className="w-12 h-12 text-gray-400" />
                 </div>
               )}
 
               <div className="flex flex-col gap-2 text-sm">
                 {localBook.pageCount && (
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center gap-2 text-gray-600 dark:text-ink-400">
                     <Hash className="w-3.5 h-3.5 text-green-500" />
                     <span className="font-lato">{localBook.pageCount} pages</span>
                   </div>
                 )}
                 {localBook.publisher && (
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center gap-2 text-gray-600 dark:text-ink-400">
                     <BookMarked className="w-3.5 h-3.5 text-green-500" />
                     <span className="font-lato">{localBook.publisher}</span>
                   </div>
                 )}
                 {localBook.language && (
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center gap-2 text-gray-600 dark:text-ink-400">
                     <Globe className="w-3.5 h-3.5 text-green-500" />
                     <span className="font-lato uppercase">{localBook.language}</span>
                   </div>
                 )}
                 {localBook.firstPublishYear && (
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center gap-2 text-gray-600 dark:text-ink-400">
                     <Calendar className="w-3.5 h-3.5 text-green-500" />
                     <span className="font-lato">{localBook.firstPublishYear}</span>
                   </div>
@@ -282,8 +284,8 @@ export default function BookDetailClient({ book, cover }) {
                 <h1 className="font-lato text-3xl font-extrabold text-gray-900 dark:text-white sm:text-4xl leading-tight">
                   {localBook.title}
                 </h1>
-                <p className="mt-2 text-lg text-gray-600 dark:text-gray-300">
-                  by <span className="font-semibold text-gray-800 dark:text-gray-100">{localBook.author}</span>
+                <p className="mt-2 text-lg text-gray-600 dark:text-ink-300">
+                  by <span className="font-semibold text-gray-800 dark:text-ink-100">{localBook.author}</span>
                 </p>
               </div>
 
@@ -328,7 +330,7 @@ export default function BookDetailClient({ book, cover }) {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.97 }}
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-2 rounded-full border-2 border-gray-400 px-5 py-2.5 font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800 transition-colors text-sm"
+                    className="inline-flex items-center gap-2 rounded-full border-2 border-gray-400 px-5 py-2.5 font-semibold text-gray-700 hover:bg-gray-100 dark:text-ink-200 dark:hover:bg-ink-800 transition-colors text-sm"
                   >
                     Upload Own EPUB
                   </motion.button>
@@ -354,7 +356,7 @@ export default function BookDetailClient({ book, cover }) {
                   href={externalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full border-2 border-gray-400 px-5 py-2.5 font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-full border-2 border-gray-400 px-5 py-2.5 font-semibold text-gray-700 hover:bg-gray-100 dark:text-ink-200 dark:hover:bg-ink-800 transition-colors"
                 >
                   <ExternalLink className="h-5 w-5" />
                   {isOpenLibraryBook ? "Open on Open Library" : "Open on Google Books"}
@@ -368,11 +370,11 @@ export default function BookDetailClient({ book, cover }) {
                   </h2>
                   {localBook.descriptionHtml ? (
                     <div
-                      className="prose prose-gray dark:prose-invert max-w-none leading-relaxed text-gray-700 dark:text-gray-300 prose-p:my-3"
+                      className="prose prose-ink dark:prose-invert max-w-none leading-relaxed text-gray-700 dark:text-ink-300 prose-p:my-3"
                       dangerouslySetInnerHTML={{ __html: localBook.descriptionHtml }}
                     />
                   ) : (
-                    <p className="whitespace-pre-line leading-relaxed text-gray-700 dark:text-gray-300">
+                    <p className="whitespace-pre-line leading-relaxed text-gray-700 dark:text-ink-300">
                       {localBook.description}
                     </p>
                   )}
@@ -388,7 +390,7 @@ export default function BookDetailClient({ book, cover }) {
                 </div>
                 
                 {!canSummarize && (
-                  <p className="p-6 rounded-2xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <p className="p-6 rounded-2xl bg-gray-50 dark:bg-ink-900/50 border border-gray-100 dark:border-ink-800 text-center text-sm text-gray-500 dark:text-ink-400">
                     AI summaries are only available for real catalogue books. This is a placeholder shown while the book service is unreachable.
                   </p>
                 )}
@@ -399,7 +401,7 @@ export default function BookDetailClient({ book, cover }) {
                     className="p-6 rounded-2xl bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-100 dark:border-purple-800/30 flex flex-col items-center text-center shadow-inner"
                   >
                     <Sparkles className="w-8 h-8 text-purple-400 mb-3" />
-                    <p className="text-gray-700 dark:text-gray-300 font-medium mb-4 max-w-md">
+                    <p className="text-gray-700 dark:text-ink-300 font-medium mb-4 max-w-md">
                       Get a comprehensive summary of this book generated by Google Gemini.
                     </p>
                     <motion.button
@@ -419,9 +421,9 @@ export default function BookDetailClient({ book, cover }) {
                 )}
 
                 {isSummaryLoading && (
-                  <div className="p-8 rounded-2xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800 flex flex-col items-center text-center">
+                  <div className="p-8 rounded-2xl bg-gray-50 dark:bg-ink-900/50 border border-gray-100 dark:border-ink-800 flex flex-col items-center text-center">
                     <RefreshCw className="w-8 h-8 text-purple-500 animate-spin mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400 font-medium animate-pulse">
+                    <p className="text-gray-600 dark:text-ink-400 font-medium animate-pulse">
                       Analyzing {localBook.title}... Crafting your summary.
                     </p>
                   </div>
@@ -431,10 +433,10 @@ export default function BookDetailClient({ book, cover }) {
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-purple-200 dark:border-purple-800/50 shadow-xl shadow-purple-900/5 relative overflow-hidden"
+                    className="p-6 rounded-2xl bg-white dark:bg-ink-900 border border-purple-200 dark:border-purple-800/50 shadow-xl shadow-purple-900/5 relative overflow-hidden"
                   >
                     <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
-                    <div className="prose prose-purple dark:prose-invert max-w-none font-lato text-gray-700 dark:text-gray-300 leading-relaxed">
+                    <div className="prose prose-ink dark:prose-invert max-w-none font-lato text-gray-700 dark:text-ink-300 leading-relaxed">
                       <ReactMarkdown>{aiSummary}</ReactMarkdown>
                     </div>
                   </motion.div>
@@ -480,25 +482,25 @@ export default function BookDetailClient({ book, cover }) {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className={`bg-white dark:bg-gray-900 rounded-3xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-2xl flex flex-col transition-all duration-300 ${
+              className={`bg-white dark:bg-ink-900 rounded-3xl overflow-hidden border border-gray-200 dark:border-ink-800 shadow-2xl flex flex-col transition-all duration-300 ${
                 isFullscreen ? "w-screen h-screen rounded-none" : "w-full max-w-5xl h-[88vh]"
               }`}
             >
-              <div className="flex items-center justify-between px-6 py-4 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 shrink-0">
+              <div className="flex items-center justify-between px-6 py-4 bg-gray-50 dark:bg-ink-950 border-b border-gray-200 dark:border-ink-800 shrink-0">
                 <div className="min-w-0">
                   <h3 className="font-bold text-gray-900 dark:text-white line-clamp-1">{localBook.title}</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{localBook.author}</p>
+                  <p className="text-xs text-gray-500 dark:text-ink-400">{localBook.author}</p>
                 </div>
                 <div className="flex items-center gap-2 ml-4">
                   <button
                     onClick={() => setIsFullscreen(!isFullscreen)}
-                    className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                    className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-ink-800 text-gray-500 dark:text-ink-400 transition-colors"
                   >
                     {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
                   </button>
                   <button
                     onClick={() => setShowReader(false)}
-                    className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                    className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-ink-800 text-gray-500 dark:text-ink-400 transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -507,13 +509,13 @@ export default function BookDetailClient({ book, cover }) {
 
               <div className="flex-1 relative overflow-hidden">
                 {finalEpubUrl ? (
-                  <EpubReaderComponent url={finalEpubUrl} title={localBook.title} />
+                  <EpubReaderComponent url={finalEpubUrl} title={localBook.title} bookKey={localBook.id} />
                 ) : canEmbed ? (
                   <>
                     {!iframeLoaded && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white dark:bg-gray-900 z-10">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white dark:bg-ink-900 z-10">
                         <RefreshCw className="w-8 h-8 text-green-500 animate-spin" />
-                        <p className="text-sm text-gray-500 dark:text-gray-400 font-lato">Loading book preview…</p>
+                        <p className="text-sm text-gray-500 dark:text-ink-400 font-lato">Loading book preview…</p>
                       </div>
                     )}
                     <iframe
@@ -526,14 +528,14 @@ export default function BookDetailClient({ book, cover }) {
                     />
                   </>
                 ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 text-center bg-white dark:bg-gray-900">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 text-center bg-white dark:bg-ink-900">
                     <div className="w-20 h-20 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
                       <EyeOff className="w-10 h-10 text-amber-500" />
                     </div>
                     <h4 className="text-xl font-bold text-gray-900 dark:text-white font-winky">
                       Preview Not Available on InkShelf
                     </h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md font-lato leading-relaxed">
+                    <p className="text-sm text-gray-500 dark:text-ink-400 max-w-md font-lato leading-relaxed">
                       This book does not have an open access preview. You can upload an EPUB file to read it directly on InkShelf.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3 items-center">
@@ -555,7 +557,7 @@ export default function BookDetailClient({ book, cover }) {
                         href={localBook.webReaderLink || `https://books.google.com/books?id=${localBook.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 rounded-full border-2 border-gray-300 dark:border-gray-600 px-5 py-2.5 font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-sm"
+                        className="inline-flex items-center gap-2 rounded-full border-2 border-gray-300 dark:border-ink-600 px-5 py-2.5 font-semibold text-gray-600 dark:text-ink-300 hover:bg-gray-100 dark:hover:bg-ink-800 transition-colors text-sm"
                       >
                         <ExternalLink className="w-4 h-4" />
                         Google Books

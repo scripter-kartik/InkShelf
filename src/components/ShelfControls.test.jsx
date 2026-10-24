@@ -143,4 +143,33 @@ describe("ShelfControls", () => {
         });
         expect(mockToast).toHaveBeenCalledWith("❤️ Added to favorites", "success");
     });
+    it("saves reading progress reported by the EPUB reader when the book is being read", async () => {
+        useSession.mockReturnValue({ status: "authenticated", data: { user: { id: "user1" } } });
+        mockFetch
+            .mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ items: [{ bookKey: "OL45804W", status: "reading", progress: 10 }] }),
+        })
+            .mockResolvedValue({ ok: true, status: 200, json: async () => ({ item: {} }) });
+        render(<ShelfControls book={mockBook}/>);
+        await screen.findByLabelText(/reading progress/i);
+        window.dispatchEvent(new CustomEvent("inkshelf:reading-progress", { detail: { bookKey: "OL45804W", progress: 37 } }));
+        await waitFor(() => {
+            const post = mockFetch.mock.calls.find(([url, init]) => url === "/api/shelf" && init?.method === "POST");
+            expect(post).toBeTruthy();
+            expect(JSON.parse(post[1].body)).toMatchObject({ progress: 37, status: "reading" });
+        }, { timeout: 3000 });
+    });
+    it("ignores reader progress for books that aren't marked as currently reading", async () => {
+        useSession.mockReturnValue({ status: "authenticated", data: { user: { id: "user1" } } });
+        mockFetch.mockResolvedValueOnce({
+            ok: true,
+            json: async () => ({ items: [{ bookKey: "OL45804W", status: "want" }] }),
+        });
+        render(<ShelfControls book={mockBook}/>);
+        await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("want"));
+        window.dispatchEvent(new CustomEvent("inkshelf:reading-progress", { detail: { bookKey: "OL45804W", progress: 50 } }));
+        await new Promise((r) => setTimeout(r, 1800));
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
 });

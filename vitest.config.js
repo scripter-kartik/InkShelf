@@ -5,9 +5,18 @@ import { fileURLToPath } from "node:url";
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.js"],
+    projects: [
+      {
+        extends: true,
+        test: { name: "ui", environment: "jsdom", include: ["src/**/*.test.jsx"] },
+      },
+      {
+        extends: true,
+        test: { name: "server", environment: "node", include: ["src/**/*.test.js"] },
+      },
+    ],
   },
   resolve: {
     alias: {

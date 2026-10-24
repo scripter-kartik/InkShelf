@@ -115,13 +115,13 @@ describe("MyBooks — shelf mode", () => {
         expect(screen.getByText("Read")).toBeInTheDocument();
         expect(screen.getByText("Notes & Reviews")).toBeInTheDocument();
     });
-    it("removes a book from the shelf optimistically", async () => {
+    it("removes a non-favorite book from the shelf with DELETE", async () => {
         useSession.mockReturnValue({ status: "authenticated" });
         mockFetch
             .mockResolvedValueOnce({
             status: 200,
             ok: true,
-            json: async () => ({ items: [shelfItem] }),
+            json: async () => ({ items: [{ ...shelfItem, favorite: false }] }),
         })
             .mockResolvedValueOnce({ ok: true });
         render(<MyBooks mode="shelf"/>);
@@ -132,6 +132,47 @@ describe("MyBooks — shelf mode", () => {
         });
         expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("bookKey=OL45804W"), expect.objectContaining({ method: "DELETE" }));
         expect(mockToast).toHaveBeenCalledWith("Removed from shelf", "success");
+    });
+});
+describe("MyBooks — removal keeps the other list intact", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        global.fetch = mockFetch;
+        useToast.mockReturnValue({ toast: mockToast });
+        useSession.mockReturnValue({ status: "authenticated" });
+    });
+    it("removing a favorited book from the shelf keeps it as a favorite", async () => {
+        mockFetch
+            .mockResolvedValueOnce({ status: 200, ok: true, json: async () => ({ items: [shelfItem] }) })
+            .mockResolvedValueOnce({ ok: true });
+        render(<MyBooks mode="shelf"/>);
+        fireEvent.click(await screen.findByRole("button", { name: /remove/i }));
+        await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+        const [url, init] = mockFetch.mock.calls[1];
+        expect(url).toBe("/api/shelf");
+        expect(init.method).toBe("POST");
+        expect(JSON.parse(init.body)).toMatchObject({ bookKey: "OL45804W", status: null });
+    });
+    it("removing a shelved book from favorites keeps it on the shelf", async () => {
+        mockFetch
+            .mockResolvedValueOnce({ status: 200, ok: true, json: async () => ({ items: [shelfItem] }) })
+            .mockResolvedValueOnce({ ok: true });
+        render(<MyBooks mode="favorites"/>);
+        fireEvent.click(await screen.findByRole("button", { name: /remove/i }));
+        await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+        const [, init] = mockFetch.mock.calls[1];
+        expect(init.method).toBe("POST");
+        expect(JSON.parse(init.body)).toMatchObject({ bookKey: "OL45804W", favorite: false });
+        expect(mockToast).toHaveBeenCalledWith("Removed from favorites", "success");
+    });
+    it("hides favorite-only books from the shelf page", async () => {
+        mockFetch.mockResolvedValueOnce({
+            status: 200, ok: true,
+            json: async () => ({ items: [{ ...shelfItem, status: undefined, title: "Fav Only" }] }),
+        });
+        render(<MyBooks mode="shelf"/>);
+        expect(await screen.findByText(/your shelf is empty/i)).toBeInTheDocument();
+        expect(screen.queryByText("Fav Only")).not.toBeInTheDocument();
     });
 });
 describe("MyBooks — favorites mode", () => {

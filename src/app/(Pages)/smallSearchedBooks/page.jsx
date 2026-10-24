@@ -95,6 +95,14 @@ const bookCardVariants = {
   }),
 };
 
+const preloaded = new Set();
+
+function preloadBook(id) {
+  if (preloaded.has(id) || String(id).startsWith("mock_")) return;
+  preloaded.add(id);
+  fetch(`/api/books?type=detail&id=${encodeURIComponent(id)}`).catch(() => {});
+}
+
 function BookCard({ book, index }) {
   const id = workId(book.key);
   const cover = coverUrl(book.cover_id ?? book.cover_i, "M");
@@ -114,9 +122,11 @@ function BookCard({ book, index }) {
     >
       <Link
         href={`/books/${id}`}
-        className="group flex flex-col h-full rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-md active:shadow-lg transition-shadow"
+        onTouchStart={() => preloadBook(id)}
+        onMouseEnter={() => preloadBook(id)}
+        className="group flex flex-col h-full rounded-2xl overflow-hidden bg-white dark:bg-ink-800 shadow-md active:shadow-lg transition-shadow"
       >
-        <div className="relative w-full aspect-[2/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
+        <div className="relative w-full aspect-[2/3] overflow-hidden bg-gray-100 dark:bg-ink-700">
           {cover ? (
             <img
               src={cover}
@@ -133,10 +143,10 @@ function BookCard({ book, index }) {
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-active:opacity-100 transition-opacity" />
         </div>
         <div className="p-2.5 flex flex-col gap-0.5 flex-1">
-          <h3 className="text-xs font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+          <h3 className="text-xs font-semibold text-gray-900 dark:text-ink-100 line-clamp-2 leading-snug group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
             {book.title}
           </h3>
-          <p className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1">
+          <p className="text-[10px] text-gray-500 dark:text-ink-400 line-clamp-1">
             {author}
           </p>
         </div>
@@ -147,11 +157,11 @@ function BookCard({ book, index }) {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-md animate-pulse">
-      <div className="w-full aspect-[2/3] bg-gray-200 dark:bg-gray-700" />
+    <div className="rounded-2xl overflow-hidden bg-white dark:bg-ink-800 shadow-md animate-pulse">
+      <div className="w-full aspect-[2/3] bg-gray-200 dark:bg-ink-700" />
       <div className="p-2.5 space-y-1.5">
-        <div className="h-2.5 w-3/4 bg-gray-200 dark:bg-gray-700 rounded" />
-        <div className="h-2 w-1/2 bg-gray-200 dark:bg-gray-700 rounded" />
+        <div className="h-2.5 w-3/4 bg-gray-200 dark:bg-ink-700 rounded" />
+        <div className="h-2 w-1/2 bg-gray-200 dark:bg-ink-700 rounded" />
       </div>
     </div>
   );
@@ -161,7 +171,7 @@ function SectionSkeleton({ label }) {
   return (
     <motion.div variants={sectionVariants} initial="hidden" animate="show" className="space-y-3">
       <div className="flex items-center gap-2">
-        <div className="h-5 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+        <div className="h-5 w-32 bg-gray-200 dark:bg-ink-700 rounded animate-pulse" />
       </div>
       <div className="grid grid-cols-3 gap-3">
         {Array.from({ length: 6 }).map((_, i) => (
@@ -184,7 +194,9 @@ export default function SmallSearchedBooks() {
   const [fetchError, setFetchError] = useState(null);
   const [view, setView] = useState("discover");
 
-  const loadRef = useRef(null);
+  const [loadNode, setLoadNode] = useState(null);
+  const fetchingRef = useRef(false);
+  const indexRef = useRef(0);
   const inputRef = useRef(null);
   const searchRef = useRef(null);
   const router = useRouter();
@@ -221,38 +233,40 @@ export default function SmallSearchedBooks() {
   }, []);
 
   const loadBooks = useCallback(async () => {
-    if (currentIndex >= CATEGORIES.length || isFetchingMore) return;
+    if (fetchingRef.current || indexRef.current >= CATEGORIES.length) return;
+    fetchingRef.current = true;
     setIsFetchingMore(true);
+    const start = indexRef.current;
     try {
-      const batch = CATEGORIES.slice(currentIndex, currentIndex + BATCH_SIZE);
+      const batch = CATEGORIES.slice(start, start + BATCH_SIZE);
       const result = await fetchBooksByCategories(batch, 30);
       setBooksCollection((prev) => [...prev, ...result]);
-      setCurrentIndex((prev) => prev + BATCH_SIZE);
+      indexRef.current = start + BATCH_SIZE;
+      setCurrentIndex(indexRef.current);
     } catch {
       setFetchError("Failed to load books. Please try again.");
     } finally {
+      fetchingRef.current = false;
       setIsFetchingMore(false);
       setLoading(false);
     }
-  }, [currentIndex, isFetchingMore]);
-
-  useEffect(() => {
-    loadBooks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    const el = loadRef.current;
-    if (!el) return;
+    loadBooks();
+  }, [loadBooks]);
+
+  useEffect(() => {
+    if (!loadNode) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !isFetchingMore) loadBooks();
+        if (entries[0].isIntersecting) loadBooks();
       },
       { rootMargin: "300px" }
     );
-    observer.observe(el);
+    observer.observe(loadNode);
     return () => observer.disconnect();
-  }, [loadRef.current, isFetchingMore, loadBooks]);
+  }, [loadNode, loadBooks, currentIndex]);
 
   const goToSearch = (term) => {
     const q = (term ?? query).trim();
@@ -286,9 +300,9 @@ export default function SmallSearchedBooks() {
       variants={pageVariants}
       initial="initial"
       animate="animate"
-      className="min-h-screen bg-gray-50 dark:bg-gray-950"
+      className="min-h-screen bg-gray-50 dark:bg-ink-950"
     >
-      <header className="sticky top-0 z-40 bg-green-400 dark:bg-gray-900 border-b-2 border-black dark:border-gray-700">
+      <header className="sticky top-0 z-40 bg-green-400 dark:bg-ink-900 border-b-2 border-black dark:border-ink-700">
         <div className="flex items-center gap-3 px-4 py-3">
           <motion.button
             whileTap={{ scale: 0.9 }}
@@ -308,8 +322,8 @@ export default function SmallSearchedBooks() {
             <div
               className={`flex items-center gap-2 h-10 rounded-xl px-3 border-2 transition-colors duration-200 ${
                 inputFocused
-                  ? "bg-white border-black dark:bg-gray-800 dark:border-green-400"
-                  : "bg-white/80 border-transparent dark:bg-gray-800/80"
+                  ? "bg-white border-black dark:bg-ink-800 dark:border-green-400"
+                  : "bg-white/80 border-transparent dark:bg-ink-800/80"
               }`}
             >
               <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
@@ -336,10 +350,10 @@ export default function SmallSearchedBooks() {
                     exit={{ opacity: 0, scale: 0.7 }}
                     transition={{ duration: 0.15 }}
                     onClick={clearQuery}
-                    className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-gray-300 dark:bg-gray-600 active:bg-gray-400"
+                    className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-gray-300 dark:bg-ink-600 active:bg-gray-400"
                     aria-label="Clear search"
                   >
-                    <X className="w-3 h-3 text-gray-600 dark:text-gray-300" />
+                    <X className="w-3 h-3 text-gray-600 dark:text-ink-300" />
                   </motion.button>
                 )}
               </AnimatePresence>
@@ -352,7 +366,7 @@ export default function SmallSearchedBooks() {
                   initial="hidden"
                   animate="show"
                   exit="exit"
-                  className="absolute top-[calc(100%+8px)] left-0 right-0 z-50 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl"
+                  className="absolute top-[calc(100%+8px)] left-0 right-0 z-50 rounded-xl overflow-hidden border border-gray-200 dark:border-ink-700 bg-white dark:bg-ink-800 shadow-xl"
                 >
                   {suggestions.map((title, idx) => (
                     <motion.li
@@ -362,7 +376,7 @@ export default function SmallSearchedBooks() {
                       transition={{ delay: idx * 0.04 }}
                     >
                       <button
-                        className="flex items-center gap-3 w-full px-4 py-3 text-left text-sm text-gray-800 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-gray-700 active:bg-green-100 dark:active:bg-gray-600 transition-colors border-b border-gray-100 dark:border-gray-700/50 last:border-0"
+                        className="flex items-center gap-3 w-full px-4 py-3 text-left text-sm text-gray-800 dark:text-ink-200 hover:bg-green-50 dark:hover:bg-ink-700 active:bg-green-100 dark:active:bg-ink-600 transition-colors border-b border-gray-100 dark:border-ink-700/50 last:border-0"
                         onMouseDown={() => goToSearch(title)}
                       >
                         <Search className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
@@ -386,7 +400,7 @@ export default function SmallSearchedBooks() {
               onClick={() => setView(id)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-t-lg text-sm font-semibold font-winky transition-colors relative ${
                 view === id
-                  ? "bg-gray-50 dark:bg-gray-950 text-black dark:text-white"
+                  ? "bg-gray-50 dark:bg-ink-950 text-black dark:text-white"
                   : "text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white"
               }`}
             >
@@ -427,7 +441,7 @@ export default function SmallSearchedBooks() {
                 <h1 className="text-xl font-extrabold font-winky text-gray-900 dark:text-white">
                   Browse by Genre
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                <p className="text-sm text-gray-500 dark:text-ink-400 mt-0.5">
                   Find your next favourite read
                 </p>
               </div>
@@ -447,7 +461,7 @@ export default function SmallSearchedBooks() {
                       className={`flex items-center gap-3 p-4 rounded-2xl border bg-gradient-to-br ${colorClass} text-left transition-colors active:brightness-95`}
                     >
                       <span className="text-2xl leading-none">{emoji}</span>
-                      <span className="font-semibold font-winky text-sm text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug">
+                      <span className="font-semibold font-winky text-sm text-gray-900 dark:text-ink-100 line-clamp-2 leading-snug">
                         {genre.label}
                       </span>
                     </motion.button>
@@ -506,7 +520,7 @@ export default function SmallSearchedBooks() {
                 </motion.section>
               ))}
 
-              <div ref={loadRef} className="h-4" />
+              <div ref={setLoadNode} className="h-4" />
               {isFetchingMore && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -514,7 +528,7 @@ export default function SmallSearchedBooks() {
                   exit={{ opacity: 0 }}
                   className="space-y-3"
                 >
-                  <div className="h-4 w-36 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                  <div className="h-4 w-36 bg-gray-200 dark:bg-ink-700 rounded animate-pulse" />
                   <div className="grid grid-cols-3 gap-3">
                     {Array.from({ length: 6 }).map((_, i) => (
                       <SkeletonCard key={i} />
@@ -530,7 +544,7 @@ export default function SmallSearchedBooks() {
                   className="text-center py-8"
                 >
                   <div className="text-3xl mb-2">📚</div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 font-lato">
+                  <p className="text-sm text-gray-500 dark:text-ink-400 font-lato">
                     You&apos;ve seen it all!
                   </p>
                   <button

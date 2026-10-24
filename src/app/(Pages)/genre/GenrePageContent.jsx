@@ -1,8 +1,7 @@
 "use client";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import gsap from "gsap";
+import { motion, AnimatePresence, animate } from "framer-motion";
 import Navbar from "../../components/Navbar";
 import BookCard from "@/components/BookCard";
 import { fetchBooksByGenre } from "@/lib/openlibrary";
@@ -38,10 +37,10 @@ export default function GenrePageContent() {
     setVisibleCount(24);
 
     if (headerRef.current) {
-      gsap.fromTo(
+      animate(
         headerRef.current,
-        { opacity: 0, y: -24 },
-        { opacity: 1, y: 0, duration: 0.6, ease: "power3.out", delay: 0.1 }
+        { opacity: [0, 1], y: [-24, 0] },
+        { duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }
       );
     }
 
@@ -60,14 +59,14 @@ export default function GenrePageContent() {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 overflow-x-clip">
+    <div className="min-h-screen bg-gray-50 dark:bg-ink-950 overflow-x-clip">
       <Navbar />
       <div className="max-w-[1600px] mx-auto px-3 md:px-6 py-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="bg-green-400 dark:bg-green-900/50 rounded-2xl p-4 md:p-6"
+          className="bg-green-400 dark:bg-ink-900/80 dark:ring-1 dark:ring-inset dark:ring-green-400/10 rounded-2xl p-4 md:p-6"
         >
           <div ref={headerRef} className="mb-6 flex items-end justify-between flex-wrap gap-3">
             <h1 className="text-2xl md:text-3xl font-extrabold font-winky text-black dark:text-white capitalize">
@@ -93,12 +92,12 @@ export default function GenrePageContent() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.03 }}
-                    className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-md animate-pulse"
+                    className="bg-white dark:bg-ink-800 rounded-2xl overflow-hidden shadow-md animate-pulse"
                   >
-                    <div className="w-full aspect-[2/3] bg-gray-200 dark:bg-gray-700" />
+                    <div className="w-full aspect-[2/3] bg-gray-200 dark:bg-ink-700" />
                     <div className="p-2.5 space-y-1.5">
-                      <div className="h-3 w-3/4 bg-gray-200 dark:bg-gray-700 rounded" />
-                      <div className="h-2 w-1/2 bg-gray-200 dark:bg-gray-700 rounded" />
+                      <div className="h-3 w-3/4 bg-gray-200 dark:bg-ink-700 rounded" />
+                      <div className="h-2 w-1/2 bg-gray-200 dark:bg-ink-700 rounded" />
                     </div>
                   </motion.div>
                 ))

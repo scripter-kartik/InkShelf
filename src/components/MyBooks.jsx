@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, animate } from "framer-motion";
 import Link from "next/link";
 import { coverUrl } from "@/lib/openlibrary";
 import { SHELF_STATUSES } from "@/lib/constants";
@@ -9,7 +9,6 @@ import { Heart, Trash2, Star, BookOpen, Library } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
 import Navbar from "@/app/components/Navbar";
-import gsap from "gsap";
 
 const cardVariants = {
   hidden: { opacity: 0, y: 28, scale: 0.95 },
@@ -49,11 +48,7 @@ export default function MyBooks({ mode }) {
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
-    gsap.fromTo(
-      el,
-      { opacity: 0, y: -20 },
-      { opacity: 1, y: 0, duration: 0.6, ease: "power3.out", delay: 0.1 }
-    );
+    animate(el, { opacity: [0, 1], y: [-20, 0] }, { duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 });
   }, []);
 
   useEffect(() => {
@@ -77,40 +72,53 @@ export default function MyBooks({ mode }) {
 
   const remove = async (bookKey) => {
     const previous = items;
+    const item = items.find((i) => i.bookKey === bookKey);
+    const keepOther = isFavorites ? item?.status : item?.favorite;
     setItems((prev) => prev.filter((i) => i.bookKey !== bookKey));
     try {
-      const res = await fetch(`/api/shelf?bookKey=${encodeURIComponent(bookKey)}`, {
-        method: "DELETE",
-      });
+      const res = keepOther
+        ? await fetch("/api/shelf", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              isFavorites
+                ? { bookKey, title: item.title, favorite: false }
+                : { bookKey, title: item.title, status: null, progress: 0 }
+            ),
+          })
+        : await fetch(`/api/shelf?bookKey=${encodeURIComponent(bookKey)}`, {
+            method: "DELETE",
+          });
       if (!res.ok) throw new Error();
-      toast("Removed from shelf", "success");
+      toast(isFavorites ? "Removed from favorites" : "Removed from shelf", "success");
     } catch {
       setItems(previous);
       toast("Couldn't remove", "error");
     }
   };
 
+  const listed = isFavorites ? items : items.filter((i) => i.status);
   const visible = isFavorites
-    ? items
+    ? listed
     : tab === "all"
-    ? items
+    ? listed
     : tab === "notes"
-    ? items.filter((i) => i.rating > 0 || i.notes)
-    : items.filter((i) => i.status === tab);
+    ? listed.filter((i) => i.rating > 0 || i.notes)
+    : listed.filter((i) => i.status === tab);
 
   const title = isFavorites ? "Your Favorites" : "My Shelf";
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-gray-50 dark:bg-ink-950">
       <Navbar />
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <div ref={headerRef}>
           <h1 className="mb-2 font-winky text-3xl font-extrabold text-gray-900 dark:text-white">
             {title}
           </h1>
-          {!loading && items.length > 0 && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-lato mb-6">
-              {items.length} book{items.length !== 1 ? "s" : ""} on your {isFavorites ? "favorites" : "shelf"}
+          {!loading && listed.length > 0 && (
+            <p className="text-sm text-gray-500 dark:text-ink-400 font-lato mb-6">
+              {listed.length} book{listed.length !== 1 ? "s" : ""} on your {isFavorites ? "favorites" : "shelf"}
             </p>
           )}
         </div>
@@ -130,16 +138,16 @@ export default function MyBooks({ mode }) {
         ) : loading ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="rounded-xl bg-white dark:bg-gray-800 p-3 shadow-md animate-pulse">
-                <div className="w-full aspect-[2/3] bg-gray-200 dark:bg-gray-700 rounded-lg" />
+              <div key={i} className="rounded-xl bg-white dark:bg-ink-800 p-3 shadow-md animate-pulse">
+                <div className="w-full aspect-[2/3] bg-gray-200 dark:bg-ink-700 rounded-lg" />
                 <div className="mt-3 space-y-2">
-                  <div className="h-3 w-3/4 bg-gray-200 dark:bg-gray-700 rounded" />
-                  <div className="h-2 w-1/2 bg-gray-200 dark:bg-gray-700 rounded" />
+                  <div className="h-3 w-3/4 bg-gray-200 dark:bg-ink-700 rounded" />
+                  <div className="h-2 w-1/2 bg-gray-200 dark:bg-ink-700 rounded" />
                 </div>
               </div>
             ))}
           </div>
-        ) : items.length === 0 ? (
+        ) : listed.length === 0 ? (
           <EmptyState
             icon={<BookOpen className="w-12 h-12 text-gray-400" />}
             message={isFavorites ? "You haven't favorited any books yet." : "Your shelf is empty."}
@@ -182,7 +190,7 @@ export default function MyBooks({ mode }) {
                       animate="show"
                       exit="exit"
                       whileHover={{ y: -5, transition: { type: "spring", stiffness: 300, damping: 20 } }}
-                      className="group relative rounded-xl bg-white p-3 shadow-md dark:bg-gray-800 hover:shadow-xl transition-shadow duration-300"
+                      className="group relative rounded-xl bg-white p-3 shadow-md dark:bg-ink-800 hover:shadow-xl transition-shadow duration-300"
                     >
                       <Link href={`/books/${item.bookKey}`}>
                         {coverUrl(item.coverId) ? (
@@ -191,16 +199,18 @@ export default function MyBooks({ mode }) {
                               whileHover={{ scale: 1.05 }}
                               transition={{ duration: 0.4 }}
                               src={coverUrl(item.coverId)}
+                              loading="lazy"
+                              decoding="async"
                               alt={`Cover of ${item.title}`}
                               className="h-48 w-full object-cover"
                             />
                           </div>
                         ) : (
-                          <div className="flex h-48 w-full items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-700">
+                          <div className="flex h-48 w-full items-center justify-center rounded-lg bg-gray-200 dark:bg-ink-700">
                             <BookOpen className="w-8 h-8 text-gray-400" />
                           </div>
                         )}
-                        <h3 className="mt-2 line-clamp-2 text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                        <h3 className="mt-2 line-clamp-2 text-sm font-medium text-gray-900 dark:text-ink-100 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
                           {item.title}
                         </h3>
                         <p className="line-clamp-1 text-xs text-gray-500">{item.author}</p>
@@ -245,7 +255,7 @@ export default function MyBooks({ mode }) {
                                 className={`h-3.5 w-3.5 ${
                                   star <= item.rating
                                     ? "fill-amber-400 text-amber-400"
-                                    : "text-gray-300 dark:text-gray-600"
+                                    : "text-gray-300 dark:text-ink-600"
                                 }`}
                               />
                             </motion.div>
@@ -255,11 +265,11 @@ export default function MyBooks({ mode }) {
 
                       {!isFavorites && item.status === "reading" && item.progress > 0 && (
                         <div className="mt-2">
-                          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-ink-400">
                             <span>Progress</span>
                             <span>{item.progress}%</span>
                           </div>
-                          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-ink-700">
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${item.progress}%` }}
@@ -271,8 +281,8 @@ export default function MyBooks({ mode }) {
                       )}
 
                       {item.notes && (
-                        <div className="mt-2 border-t border-gray-100 pt-2 dark:border-gray-700">
-                          <p className="line-clamp-2 text-xs italic text-gray-600 dark:text-gray-400">
+                        <div className="mt-2 border-t border-gray-100 pt-2 dark:border-ink-700">
+                          <p className="line-clamp-2 text-xs italic text-gray-600 dark:text-ink-400">
                             &ldquo;{item.notes}&rdquo;
                           </p>
                         </div>
@@ -299,7 +309,7 @@ function Tab({ label, value, tab, setTab }) {
       className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors relative ${
         active
           ? "bg-green-500 text-black shadow-md"
-          : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+          : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-ink-800 dark:text-ink-300 dark:hover:bg-ink-700"
       }`}
     >
       {active && (
@@ -320,17 +330,17 @@ function EmptyState({ icon, message, hint, cta }) {
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-12 text-center"
+      className="rounded-2xl border-2 border-dashed border-gray-200 dark:border-ink-700 p-12 text-center"
     >
       <motion.div
         initial={{ scale: 0.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
-        className="mx-auto mb-4 w-20 h-20 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center"
+        className="mx-auto mb-4 w-20 h-20 rounded-full bg-gray-100 dark:bg-ink-800 flex items-center justify-center"
       >
         {icon}
       </motion.div>
-      <p className="text-lg font-semibold text-gray-700 dark:text-gray-200 font-winky">{message}</p>
+      <p className="text-lg font-semibold text-gray-700 dark:text-ink-200 font-winky">{message}</p>
       {hint && <p className="mt-2 text-sm text-gray-500">{hint}</p>}
       {cta && (
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>

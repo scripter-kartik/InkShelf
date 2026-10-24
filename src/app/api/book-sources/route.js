@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
+import { cacheGet, cacheSet } from "@/lib/store";
 
 const OL_TIMEOUT_MS = 40000;
 const GUTENDEX_TIMEOUT_MS = 15000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const CACHE_MAX = 1000;
-const cache = new Map();
 const inFlight = new Map();
 const PARTIAL_TTL_MS = 10 * 60 * 1000;
 
@@ -137,9 +136,10 @@ export async function GET(request) {
   }
 
   const cacheKey = `${title.toLowerCase()}|${author.toLowerCase()}|${olid || ""}`;
-  const hit = cache.get(cacheKey);
-  if (hit && Date.now() < hit.expires) {
-    return NextResponse.json(hit.data);
+  const storeKey = `sources:${cacheKey}`;
+  const hit = await cacheGet(storeKey);
+  if (hit) {
+    return NextResponse.json(hit);
   }
 
   let pending = inFlight.get(cacheKey);
@@ -150,8 +150,7 @@ export async function GET(request) {
   const { complete, ...data } = await pending;
 
   const ttl = complete || data.epubUrl ? CACHE_TTL_MS : PARTIAL_TTL_MS;
-  if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
-  cache.set(cacheKey, { expires: Date.now() + ttl, data });
+  await cacheSet(storeKey, data, ttl);
 
   return NextResponse.json(data, {
     headers: {

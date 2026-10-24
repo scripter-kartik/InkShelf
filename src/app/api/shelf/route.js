@@ -61,7 +61,8 @@ export async function POST(request) {
         update.coverId = body.coverId;
     if (body.author !== undefined)
         update.author = body.author;
-    if (body.status !== undefined)
+    const clearStatus = body.status === null || body.status === "";
+    if (body.status !== undefined && !clearStatus)
         update.status = body.status;
     if (body.favorite !== undefined)
         update.favorite = body.favorite;
@@ -73,7 +74,7 @@ export async function POST(request) {
         update.notes = body.notes;
     try {
         await connectToDatabase();
-        const item = await ShelfItem.findOneAndUpdate({ userId: session.user.id, bookKey }, { $set: update, $setOnInsert: { userId: session.user.id, bookKey } }, { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }).lean();
+        const item = await ShelfItem.findOneAndUpdate({ userId: session.user.id, bookKey }, { $set: update, $setOnInsert: { userId: session.user.id, bookKey }, ...(clearStatus ? { $unset: { status: "" } } : {}) }, { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }).lean();
         return NextResponse.json({ item });
     }
     catch (err) {

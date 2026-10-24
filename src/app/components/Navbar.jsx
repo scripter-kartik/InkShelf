@@ -3,9 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, animate } from "framer-motion";
 import { Search, ChevronDown, Menu, Heart, Library, User, LogOut, X } from "lucide-react";
-import gsap from "gsap";
 import { GENRES } from "@/lib/constants";
 import { fetchSuggestions } from "@/lib/openlibrary";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -50,6 +49,8 @@ const suggestionItemVariants = {
   }),
 };
 
+let navIntroPlayed = false;
+
 export default function Navbar() {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -65,30 +66,25 @@ export default function Navbar() {
   const browseRef = useRef(null);
   const searchRef = useRef(null);
   const accountRef = useRef(null);
-  const navRef = useRef(null);
   const logoRef = useRef(null);
   const { data: session } = useSession();
 
+  const [playIntro] = useState(() => pathname === "/" && !navIntroPlayed);
   useEffect(() => {
-    const el = navRef.current;
-    if (!el) return;
-    gsap.fromTo(
-      el,
-      { y: -80, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.7, ease: "power3.out", delay: 0.05 }
-    );
+    navIntroPlayed = true;
   }, []);
+  const intro = (i, base = "") =>
+    playIntro
+      ? { className: `${base} nav-intro-item`, style: { animationDelay: `${150 + i * 90}ms` } }
+      : { className: base };
 
   const handleLogoHover = () => {
     if (!logoRef.current) return;
-    gsap.to(logoRef.current, {
-      rotate: 15,
-      scale: 1.15,
-      duration: 0.2,
-      ease: "power2.out",
-      yoyo: true,
-      repeat: 1,
-    });
+    animate(
+      logoRef.current,
+      { rotate: [0, 15, 0], scale: [1, 1.15, 1] },
+      { duration: 0.4, ease: "easeOut" }
+    );
   };
 
   useEffect(() => {
@@ -140,14 +136,13 @@ export default function Navbar() {
   return (
     <>
       <header
-        ref={navRef}
-        className={`sticky top-0 z-40 border-b-2 border-black bg-green-400 dark:border-gray-700 dark:bg-gray-900 transition-shadow duration-300 ${
+        className={`sticky top-0 z-40 border-b-2 border-black bg-green-400 dark:border-white/[0.06] dark:bg-ink-950/75 dark:backdrop-blur-xl transition-shadow duration-300 ${
           scrolled ? "shadow-lg" : ""
-        }`}
+        } ${playIntro ? "nav-intro" : ""}`}
       >
         <nav className="mx-auto flex h-16 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-4 lg:gap-8">
-            <Link href="/" className="flex shrink-0 items-center gap-2" onMouseEnter={handleLogoHover}>
+            <Link href="/" {...intro(0, "flex shrink-0 items-center gap-2")} onMouseEnter={handleLogoHover}>
               <motion.div ref={logoRef} whileTap={{ rotate: 360, transition: { duration: 0.4 } }} className="relative h-8 w-8">
                 <img
                   className="h-8 w-8 dark:hidden"
@@ -165,7 +160,7 @@ export default function Navbar() {
               </span>
             </Link>
 
-            <div className="relative hidden lg:block" ref={browseRef}>
+            <div {...intro(1, "relative hidden lg:block")} ref={browseRef}>
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
@@ -189,7 +184,7 @@ export default function Navbar() {
                     initial="hidden"
                     animate="show"
                     exit="exit"
-                    className="absolute mt-2 max-h-96 w-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+                    className="absolute mt-2 max-h-96 w-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-ink-700 dark:bg-ink-800"
                   >
                     {GENRES.map((g, i) => (
                       <motion.button
@@ -199,7 +194,7 @@ export default function Navbar() {
                         initial="hidden"
                         animate="show"
                         onClick={() => goToGenre(g.slug)}
-                        className="block w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-green-100 dark:text-gray-200 dark:hover:bg-gray-700 transition-colors"
+                        className="block w-full px-4 py-2 text-left text-sm text-gray-800 hover:bg-green-100 dark:text-ink-200 dark:hover:bg-ink-700 transition-colors"
                       >
                         {g.label}
                       </motion.button>
@@ -209,10 +204,10 @@ export default function Navbar() {
               </AnimatePresence>
             </div>
 
-            <div className="relative hidden lg:block" ref={searchRef}>
+            <div {...intro(2, "relative hidden lg:block")} ref={searchRef}>
               <motion.div
                 animate={showSuggestions ? { scale: 1.01 } : { scale: 1 }}
-                className="flex h-11 w-72 items-center gap-2 rounded-xl border-2 border-gray-400 bg-white px-3 transition-colors focus-within:border-green-500 dark:border-gray-600 dark:bg-gray-800 xl:w-80"
+                className="flex h-11 w-72 items-center gap-2 rounded-xl border-2 border-gray-400 bg-white px-3 transition-colors focus-within:border-green-500 dark:border-ink-600 dark:bg-ink-800 xl:w-80"
               >
                 <Search className="h-4 w-4 text-gray-500 flex-shrink-0" />
                 <input
@@ -246,7 +241,7 @@ export default function Navbar() {
                     initial="hidden"
                     animate="show"
                     exit="exit"
-                    className="absolute left-0 top-12 z-50 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+                    className="absolute left-0 top-12 z-50 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-ink-700 dark:bg-ink-800"
                   >
                     {suggestions.map((title, idx) => (
                       <motion.li
@@ -257,7 +252,7 @@ export default function Navbar() {
                         animate="show"
                       >
                         <button
-                          className="flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700/50 last:border-0"
+                          className="flex items-center gap-2 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:text-ink-200 dark:hover:bg-ink-700 transition-colors border-b border-gray-100 dark:border-ink-700/50 last:border-0"
                           onMouseDown={() => goToSearch(title)}
                         >
                           <Search className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
@@ -271,7 +266,7 @@ export default function Navbar() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div {...intro(3, "flex items-center gap-2 sm:gap-4")}>
             <ThemeToggle />
 
             <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
@@ -313,9 +308,9 @@ export default function Navbar() {
                       initial="hidden"
                       animate="show"
                       exit="exit"
-                      className="absolute right-0 mt-2 w-52 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+                      className="absolute right-0 mt-2 w-52 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-ink-700 dark:bg-ink-800"
                     >
-                      <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-700">
+                      <div className="border-b border-gray-100 px-4 py-3 dark:border-ink-700">
                         <p className="truncate text-sm font-semibold dark:text-white">
                           {session.user.name}
                         </p>
@@ -328,7 +323,7 @@ export default function Navbar() {
                       <AccountLink href="/shelf" icon={Library} label="My Shelf" onClick={() => setAccountOpen(false)} />
                       <button
                         onClick={() => signOut()}
-                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-gray-700 transition-colors"
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-ink-700 transition-colors"
                       >
                         <LogOut className="h-4 w-4" /> Log out
                       </button>
@@ -408,7 +403,7 @@ export default function Navbar() {
               initial="hidden"
               animate="show"
               exit="exit"
-              className="overflow-hidden border-t border-black/10 bg-green-400 px-4 py-4 sm:hidden dark:border-gray-700 dark:bg-gray-900"
+              className="overflow-hidden border-t border-black/10 bg-green-400 px-4 py-4 sm:hidden dark:border-ink-700 dark:bg-ink-900"
             >
               {session?.user ? (
                 <div className="flex flex-col gap-2">
@@ -464,7 +459,7 @@ function AccountLink({ href, icon: Icon, label, onClick }) {
     <Link
       href={href}
       onClick={onClick}
-      className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700 transition-colors"
+      className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-gray-50 dark:text-ink-200 dark:hover:bg-ink-700 transition-colors"
     >
       <Icon className="h-4 w-4" /> {label}
     </Link>

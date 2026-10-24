@@ -15,7 +15,7 @@ const ICONS = {
 const COLORS = {
   success: "bg-emerald-600 border-emerald-500",
   error: "bg-red-600 border-red-500",
-  info: "bg-gray-800 border-gray-700",
+  info: "bg-ink-800 border-ink-700",
 };
 
 export function ToastProvider({ children }) {

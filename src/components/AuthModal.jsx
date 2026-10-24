@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { signIn, getProviders } from "next-auth/react";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ToastProvider";
@@ -42,13 +42,46 @@ export default function AuthModal({ mode = "login", onClose, onSwitch }) {
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    getProviders()
+      .then((providers) => {
+        if (active) setGoogleEnabled(Boolean(providers?.google));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setNotice("");
     setLoading(true);
+    if (forgot) {
+      try {
+        const res = await fetch("/api/password/forgot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form.email }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) setError(data.error || "Couldn't send the reset link.");
+        else setNotice(data.message);
+      } catch {
+        setError("Something went wrong. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     try {
       if (isSignup) {
         const res = await fetch("/api/register", {
@@ -72,6 +105,8 @@ export default function AuthModal({ mode = "login", onClose, onSwitch }) {
         setError(
           result.error === "Database not configured"
             ? "Accounts require a database connection (set MONGODB_URI)."
+            : result.error === "TooManyAttempts"
+            ? "Too many login attempts. Please wait 15 minutes and try again."
             : "Invalid email or password."
         );
         setLoading(false);
@@ -85,7 +120,9 @@ export default function AuthModal({ mode = "login", onClose, onSwitch }) {
     }
   };
 
-  const fields = isSignup
+  const fields = forgot
+    ? [{ type: "email", key: "email", placeholder: "Email" }]
+    : isSignup
     ? [
         { type: "text", key: "name", placeholder: "Full Name" },
         { type: "email", key: "email", placeholder: "Email" },
@@ -113,7 +150,7 @@ export default function AuthModal({ mode = "login", onClose, onSwitch }) {
           initial="hidden"
           animate="show"
           exit="exit"
-          className="relative w-full max-w-sm rounded-2xl bg-white p-7 shadow-2xl dark:bg-gray-900 border border-gray-100 dark:border-gray-800"
+          className="relative w-full max-w-sm rounded-2xl bg-white p-7 shadow-2xl dark:bg-ink-900 border border-gray-100 dark:border-ink-800"
           onClick={(e) => e.stopPropagation()}
         >
           <motion.button
@@ -137,36 +174,44 @@ export default function AuthModal({ mode = "login", onClose, onSwitch }) {
               <img src="/icon.png" alt="" className="w-7 h-7" />
             </div>
             <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white font-winky">
-              {isSignup ? "Join InkShelf" : "Welcome back"}
+              {forgot ? "Reset your password" : isSignup ? "Join InkShelf" : "Welcome back"}
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {isSignup ? "Create your reading profile" : "Log in to your reading shelf"}
+            <p className="text-sm text-gray-500 dark:text-ink-400 mt-1">
+              {forgot
+                ? "We'll email you a link to choose a new one"
+                : isSignup
+                ? "Create your reading profile"
+                : "Log in to your reading shelf"}
             </p>
           </motion.div>
 
-          <motion.button
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.35 }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => signIn("google")}
-            className="flex w-full items-center justify-center gap-3 rounded-xl border-2 border-gray-200 py-2.5 font-semibold text-gray-800 hover:bg-gray-50 dark:border-gray-700 dark:text-white dark:hover:bg-gray-800 transition-colors"
-          >
-            <img className="h-5 w-5" src="/google.png" alt="" />
-            Continue with Google
-          </motion.button>
+          {googleEnabled && !forgot && (
+            <>
+              <motion.button
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.35 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => signIn("google")}
+                className="flex w-full items-center justify-center gap-3 rounded-xl border-2 border-gray-200 py-2.5 font-semibold text-gray-800 hover:bg-gray-50 dark:border-ink-700 dark:text-white dark:hover:bg-ink-800 transition-colors"
+              >
+                <img className="h-5 w-5" src="/google.png" alt="" />
+                Continue with Google
+              </motion.button>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.15 }}
-            className="my-5 flex items-center gap-3"
-          >
-            <hr className="flex-grow border-gray-200 dark:border-gray-700" />
-            <span className="text-xs text-gray-400">or</span>
-            <hr className="flex-grow border-gray-200 dark:border-gray-700" />
-          </motion.div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.15 }}
+                className="my-5 flex items-center gap-3"
+              >
+                <hr className="flex-grow border-gray-200 dark:border-ink-700" />
+                <span className="text-xs text-gray-400">or</span>
+                <hr className="flex-grow border-gray-200 dark:border-ink-700" />
+              </motion.div>
+            </>
+          )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             {fields.map((f, i) => (
@@ -179,15 +224,34 @@ export default function AuthModal({ mode = "login", onClose, onSwitch }) {
               >
                 <input
                   type={f.type}
-                  required={f.key !== "name" || isSignup}
+                  required
                   minLength={f.key === "password" && isSignup ? 8 : undefined}
                   placeholder={f.placeholder}
                   value={form[f.key]}
                   onChange={update(f.key)}
-                  className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition-colors focus:border-green-500 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:bg-gray-800 dark:focus:border-green-400"
+                  className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm outline-none transition-colors focus:border-green-500 focus:bg-white dark:border-ink-700 dark:bg-ink-800 dark:text-white dark:focus:bg-ink-800 dark:focus:border-green-400"
                 />
               </motion.div>
             ))}
+
+            {!isSignup && !forgot && (
+              <button
+                type="button"
+                onClick={() => {
+                  setForgot(true);
+                  setError("");
+                }}
+                className="-mt-1 self-end text-xs font-semibold text-green-600 hover:underline dark:text-green-400"
+              >
+                Forgot password?
+              </button>
+            )}
+
+            {notice && (
+              <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-300">
+                {notice}
+              </p>
+            )}
 
             <AnimatePresence>
               {error && (
@@ -219,6 +283,8 @@ export default function AuthModal({ mode = "login", onClose, onSwitch }) {
                   />
                   Please wait…
                 </span>
+              ) : forgot ? (
+                "Send reset link"
               ) : isSignup ? (
                 "Create account"
               ) : (
@@ -231,14 +297,19 @@ export default function AuthModal({ mode = "login", onClose, onSwitch }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="mt-5 text-center text-sm text-gray-600 dark:text-gray-300"
+            className="mt-5 text-center text-sm text-gray-600 dark:text-ink-300"
           >
-            {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
+            {forgot ? "Remembered it?" : isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
             <button
-              onClick={() => onSwitch?.(isSignup ? "login" : "signup")}
+              onClick={() => {
+                setError("");
+                setNotice("");
+                if (forgot) setForgot(false);
+                else onSwitch?.(isSignup ? "login" : "signup");
+              }}
               className="font-semibold text-green-600 hover:underline dark:text-green-400"
             >
-              {isSignup ? "Log in" : "Sign up"}
+              {forgot || isSignup ? "Log in" : "Sign up"}
             </button>
           </motion.p>
         </motion.div>

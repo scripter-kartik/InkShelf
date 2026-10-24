@@ -1,8 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, animate } from "framer-motion";
 import { Star } from "lucide-react";
-import gsap from "gsap";
 
 const LABELS = {
   0: "Click to rate",
@@ -22,23 +21,14 @@ export default function StarRating({ rating, onChange, disabled }) {
   const handleClick = (star) => {
     const el = starRefs.current[star - 1];
     if (el) {
-      gsap.fromTo(
-        el,
-        { scale: 0.6, rotate: -20 },
-        {
-          scale: 1,
-          rotate: 0,
-          duration: 0.35,
-          ease: "back.out(2.5)",
-        }
-      );
+      animate(el, { scale: [0.6, 1], rotate: [-20, 0] }, { duration: 0.35, ease: [0.34, 1.56, 0.64, 1] });
     }
     onChange(star);
   };
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+      <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-ink-400">
         Your Rating
       </span>
       <div className="flex items-center gap-3">
@@ -66,7 +56,7 @@ export default function StarRating({ rating, onChange, disabled }) {
                   className={`h-7 w-7 transition-colors duration-200 ${
                     isFilled
                       ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.5)]"
-                      : "text-gray-300 dark:text-gray-600 hover:text-amber-300"
+                      : "text-gray-300 dark:text-ink-600 hover:text-amber-300"
                   }`}
                 />
               </motion.button>
@@ -81,7 +71,7 @@ export default function StarRating({ rating, onChange, disabled }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.9 }}
             transition={{ duration: 0.2 }}
-            className="text-sm font-medium text-gray-600 dark:text-gray-300 min-w-[80px]"
+            className="text-sm font-medium text-gray-600 dark:text-ink-300 min-w-[80px]"
           >
             {LABELS[activeRating]}
           </motion.span>

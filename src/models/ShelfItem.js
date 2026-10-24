@@ -8,7 +8,6 @@ const ShelfItemSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: ["want", "reading", "read"],
-        default: "want",
     },
     favorite: { type: Boolean, default: false },
     progress: { type: Number, default: 0, min: 0, max: 100 },

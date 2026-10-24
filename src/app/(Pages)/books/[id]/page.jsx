@@ -38,7 +38,7 @@ export default async function BookDetailPage({ params }) {
   const cover = coverUrl(book.coverId, "L");
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-gray-50 dark:bg-ink-950">
       <Navbar />
       <BookDetailClient book={book} cover={cover} />
     </div>

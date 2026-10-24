@@ -1,23 +1,33 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Lato, Playwrite_AU_QLD, Winky_Rough } from "next/font/google";
 import "../styles/globals.css";
 import AuthProvider from "@/app/components/AuthProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 import PageTransition from "@/components/PageTransition";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const lato = Lato({
   subsets: ["latin"],
+  weight: ["300", "400", "700", "900"],
+  style: ["normal", "italic"],
+  variable: "--font-lato",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const winky = Winky_Rough({
   subsets: ["latin"],
+  variable: "--font-winky",
+  display: "swap",
+  adjustFontFallback: false,
+});
+
+const playwrite = Playwrite_AU_QLD({
+  variable: "--font-playwrite",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "InkShelf",
+  title: { default: "InkShelf", template: "%s · InkShelf" },
   description: "InkShelf – Discover, track, and love your books.",
 };
 
@@ -26,15 +36,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Intel+One+Mono:ital,wght@0,300..700;1,300..700&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Playwrite+AU+QLD:wght@100..400&family=Winky+Rough:ital,wght@0,300..900;1,300..900&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${lato.variable} ${winky.variable} ${playwrite.variable} antialiased bg-white dark:bg-ink-950`}>
         <ThemeProvider>
           <AuthProvider>
             <ToastProvider>

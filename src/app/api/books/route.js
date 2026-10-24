@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cacheGet, cacheSet } from "@/lib/store";
 import { fetchBooksByGenre, searchBooks, fetchSuggestions, fetchWorkDetail } from "@/lib/openlibrary";
 
 const TTL_MS = {
@@ -7,8 +8,6 @@ const TTL_MS = {
   suggest: 6 * 60 * 60 * 1000,
 };
 const FALLBACK_TTL_MS = 2 * 60 * 1000;
-const CACHE_MAX = 2000;
-const cache = new Map();
 const inFlight = new Map();
 
 const SOURCES = new Set(["google", "openlibrary", "mock"]);
@@ -76,9 +75,10 @@ export async function GET(request) {
     }
   }
 
-  const hit = cache.get(req.cacheKey);
-  if (hit && Date.now() < hit.expires) {
-    return NextResponse.json(hit.data, { headers: { "X-Cache": "HIT" } });
+  const storeKey = `books:${req.cacheKey}`;
+  const hit = await cacheGet(storeKey);
+  if (hit) {
+    return NextResponse.json(hit, { headers: { "X-Cache": "HIT" } });
   }
 
   let pending = inFlight.get(req.cacheKey);
@@ -89,11 +89,7 @@ export async function GET(request) {
 
   try {
     const { data, placeholder } = await pending;
-    if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
-    cache.set(req.cacheKey, {
-      data,
-      expires: Date.now() + (placeholder ? FALLBACK_TTL_MS : TTL_MS[req.type]),
-    });
+    await cacheSet(storeKey, data, placeholder ? FALLBACK_TTL_MS : TTL_MS[req.type]);
     return NextResponse.json(data, { headers: { "X-Cache": "MISS" } });
   } catch (err) {
     console.error("Books API failed:", err.message);

@@ -4,7 +4,7 @@ export default function Error({ error, reset }) {
     useEffect(() => {
         console.error(error);
     }, [error]);
-    return (<div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-4 text-center dark:bg-gray-950">
+    return (<div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-4 text-center dark:bg-ink-950">
       <h1 className="font-lato text-4xl font-extrabold text-gray-900 dark:text-white">
         Something went wrong
       </h1>

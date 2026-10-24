@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
+import homeImage from "../../../public/homeImage.jpg";
 import { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import gsap from "gsap";
@@ -67,7 +69,7 @@ const FEATURES = [
   {
     icon: Globe,
     title: "Free, Always",
-    desc: "No subscription. No paywall. Access millions of books through Google Books — completely free.",
+    desc: "No subscription, no paywall. Read 75,000+ classics free and borrow modern books through Open Library.",
     color: "text-purple-500",
     bg: "bg-purple-50 dark:bg-purple-900/20",
   },
@@ -81,33 +83,27 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { value: "5M+", label: "Books Available", icon: BookOpen },
-  { value: "24", label: "Genre Categories", icon: BookMarked },
-  { value: "100%", label: "Free Forever", icon: Sparkles },
-  { value: "∞", label: "Reading Lists", icon: Library },
+  { value: "75K+", label: "Free Classics to Read", icon: BookOpen },
+  { value: "24", label: "Genres to Explore", icon: BookMarked },
+  { value: "100%", label: "Free, No Paywall", icon: Sparkles },
+  { value: "∞", label: "Books on Your Shelf", icon: Library },
 ];
 
-const TESTIMONIALS = [
+const STEPS = [
   {
-    name: "Aanya Sharma",
-    handle: "@aanya.reads",
-    text: "InkShelf changed how I read. I finally have one place for everything — tracking, reviews, discovery. The design is just stunning.",
-    avatar: "🧕",
-    stars: 5,
+    icon: Search,
+    title: "Find any book",
+    text: "Search Google Books and Open Library in one place, or browse 24 hand-picked genres.",
   },
   {
-    name: "Rohan Mehta",
-    handle: "@rohanbooksclub",
-    text: "I've tried Goodreads, StoryGraph — nothing comes close to InkShelf's speed and aesthetic. My whole reading life is here now.",
-    avatar: "👨‍💻",
-    stars: 5,
+    icon: BookOpen,
+    title: "Read it free",
+    text: "Open 75,000+ public-domain classics right here, or borrow modern titles free through Open Library.",
   },
   {
-    name: "Priya Nair",
-    handle: "@priya.pages",
-    text: "The genre browsing alone is worth it. I discovered three new authors last week just from exploring the Fantasy section.",
-    avatar: "👩‍🎨",
-    stars: 5,
+    icon: Sparkles,
+    title: "Make it yours",
+    text: "Shelve it, rate it, keep notes, get an AI summary — and your progress updates as you read.",
   },
 ];
 
@@ -160,6 +156,13 @@ export default function Home() {
 
   useEffect(() => {
     if (!mounted) return;
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (subtitleRef.current) {
+        subtitleRef.current.textContent = "Your Free Reading Companion · Discover · Track";
+      }
+      return;
+    }
 
     const ctx = gsap.context(() => {
       const dots = particlesRef.current?.querySelectorAll(".particle") || [];
@@ -456,7 +459,7 @@ export default function Home() {
   ));
 
   return (
-    <div ref={pageRef} className="relative bg-white dark:bg-gray-950 overflow-x-clip">
+    <div ref={pageRef} className="relative bg-white dark:bg-ink-950 overflow-x-clip">
       <div
         ref={scrollLineRef}
         className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-green-400 via-green-500 to-emerald-600 z-[60] origin-left"
@@ -520,7 +523,7 @@ export default function Home() {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, ease: "backOut" }}
-            className="inline-flex items-center gap-2.5 px-6 py-2 rounded-full border-2 border-black dark:border-green-400 bg-green-400 text-black dark:bg-gray-900 dark:text-white text-md font-bold tracking-widest uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(74,222,128,1)] mb-2"
+            className="inline-flex items-center gap-2.5 px-6 py-2 rounded-full border-2 border-black dark:border-green-400 bg-green-400 text-black dark:bg-ink-900 dark:text-white text-md font-bold tracking-widest uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(74,222,128,1)] mb-2"
           >
             <Sparkles className="w-4 h-4 text-black dark:text-green-400 animate-pulse" />
             <span>INKSHELF</span>
@@ -535,14 +538,14 @@ export default function Home() {
 
           <p
             ref={subtitleRef}
-            className="text-xl sm:text-2xl font-lato text-gray-600 dark:text-gray-300 font-medium min-h-[2rem]"
+            className="text-xl sm:text-2xl font-lato text-gray-600 dark:text-ink-300 font-medium min-h-[2rem]"
           />
 
           <motion.p
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.6, duration: 0.6 }}
-            className="max-w-xl text-base sm:text-lg text-gray-500 dark:text-gray-400 font-light leading-relaxed"
+            className="max-w-xl text-base sm:text-lg text-gray-500 dark:text-ink-400 font-light leading-relaxed"
           >
             InkShelf is home to people who love reading. Millions of books,
             zero cost. Everything you need — search, shelve, review — in one
@@ -589,21 +592,21 @@ export default function Home() {
           <motion.div
             animate={{ y: [0, 10, 0] }}
             transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-            className="w-6 h-10 rounded-full border-2 border-gray-400 dark:border-gray-500 flex justify-center pt-1.5"
+            className="w-6 h-10 rounded-full border-2 border-gray-400 dark:border-ink-500 flex justify-center pt-1.5"
           >
-            <div className="w-1 h-2.5 rounded-full bg-gray-400 dark:bg-gray-500" />
+            <div className="w-1 h-2.5 rounded-full bg-gray-400 dark:bg-ink-500" />
           </motion.div>
           <span className="text-xs text-gray-400 font-lato tracking-widest uppercase">scroll</span>
         </motion.div>
       </section>
 
-      <div className="py-5 bg-green-400 dark:bg-green-900/60 overflow-hidden border-y-2 border-black dark:border-green-700">
+      <div className="py-5 bg-green-400 dark:bg-gradient-to-r dark:from-ink-950 dark:via-ink-900 dark:to-ink-950 overflow-hidden border-y-2 border-black dark:border-y dark:border-ink-800">
         <div ref={marqueeRef} className="overflow-hidden">
           <div className="marquee-inner flex gap-12 whitespace-nowrap will-change-transform"
             style={{ width: "200%" }}
           >
             {[...MARQUEE_BOOKS, ...MARQUEE_BOOKS].map((title, i) => (
-              <span key={i} className="text-black dark:text-white font-winky text-lg font-semibold flex-shrink-0 flex items-center gap-3">
+              <span key={i} className="text-black dark:text-green-300/90 font-winky text-lg font-semibold flex-shrink-0 flex items-center gap-3">
                 <BookOpen className="w-4 h-4 inline-block opacity-60" />
                 {title}
               </span>
@@ -612,7 +615,7 @@ export default function Home() {
         </div>
       </div>
 
-      <section className="py-24 px-4 bg-white dark:bg-gray-950">
+      <section className="py-24 px-4 bg-white dark:bg-ink-950">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-extrabold font-winky text-gray-900 dark:text-white">
@@ -627,7 +630,7 @@ export default function Home() {
             {STATS.map((s, i) => (
               <div
                 key={i}
-                className="stat-card rounded-3xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900 p-8 text-center shadow-lg border border-green-100 dark:border-gray-700 hover:shadow-2xl transition-shadow duration-300"
+                className="stat-card rounded-3xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-ink-800 dark:to-ink-900 p-8 text-center shadow-lg border border-green-100 dark:border-ink-700 hover:shadow-2xl transition-shadow duration-300"
               >
                 <s.icon className="w-8 h-8 text-green-500 mx-auto mb-3" />
                 <p
@@ -636,14 +639,14 @@ export default function Home() {
                 >
                   {s.value}
                 </p>
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 font-lato">{s.label}</p>
+                <p className="mt-2 text-sm text-gray-500 dark:text-ink-400 font-lato">{s.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="relative py-24 px-4 bg-gray-50 dark:bg-gray-900 overflow-hidden">
+      <section className="relative py-24 px-4 bg-gray-50 dark:bg-ink-900 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_80%_50%,rgba(74,222,128,0.1),transparent)] pointer-events-none" />
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
           <div ref={horizRef}>
@@ -657,7 +660,7 @@ export default function Home() {
               Your entire reading life,<br />
               <span className="text-green-500">beautifully organized.</span>
             </h2>
-            <p className="horiz-item text-lg text-gray-600 dark:text-gray-300 font-lato leading-relaxed mb-8">
+            <p className="horiz-item text-lg text-gray-600 dark:text-ink-300 font-lato leading-relaxed mb-8">
               From the moment you discover a book to the day you finish it — InkShelf is with you. Rate, review, build wishlists, track progress, and explore millions of titles across every genre.
             </p>
             <div className="horiz-item flex flex-col gap-4">
@@ -670,7 +673,7 @@ export default function Home() {
                   <div className="w-9 h-9 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
                     <Icon className="w-4 h-4 text-green-600 dark:text-green-400" />
                   </div>
-                  <span className="text-gray-700 dark:text-gray-300 font-lato">{text}</span>
+                  <span className="text-gray-700 dark:text-ink-300 font-lato">{text}</span>
                 </div>
               ))}
             </div>
@@ -695,9 +698,11 @@ export default function Home() {
             whileHover={{ rotate: -1, scale: 1.02 }}
             className="relative rounded-3xl overflow-hidden shadow-2xl"
           >
-            <img
-              src="/homeImage.jpg"
+            <Image
+              src={homeImage}
               alt="Reading"
+              placeholder="blur"
+              sizes="(min-width: 768px) 50vw, 100vw"
               className="w-full h-80 md:h-[500px] object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -717,14 +722,14 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-24 px-4 bg-white dark:bg-gray-950">
+      <section className="py-24 px-4 bg-white dark:bg-ink-950">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-extrabold font-winky text-gray-900 dark:text-white">
               Everything a reader needs
             </h2>
             <div className="section-line mt-3 h-1 w-24 mx-auto bg-green-400 rounded-full" />
-            <p className="mt-4 text-gray-500 dark:text-gray-400 text-lg max-w-xl mx-auto font-lato">
+            <p className="mt-4 text-gray-500 dark:text-ink-400 text-lg max-w-xl mx-auto font-lato">
               Built for book lovers, by book lovers.
             </p>
           </div>
@@ -738,15 +743,15 @@ export default function Home() {
                 key={i}
                 whileHover={{ y: -8, boxShadow: "0 20px 60px rgba(0,0,0,0.12)" }}
                 transition={{ type: "spring", stiffness: 280, damping: 20 }}
-                className={`feature-card rounded-3xl p-7 border border-gray-100 dark:border-gray-800 ${f.bg} cursor-default`}
+                className={`feature-card rounded-3xl p-7 border border-gray-100 dark:border-ink-800 ${f.bg} cursor-default`}
               >
-                <div className={`feature-icon w-12 h-12 rounded-2xl ${f.bg} border border-gray-200 dark:border-gray-700 flex items-center justify-center mb-5`}>
+                <div className={`feature-icon w-12 h-12 rounded-2xl ${f.bg} border border-gray-200 dark:border-ink-700 flex items-center justify-center mb-5`}>
                   <f.icon className={`w-6 h-6 ${f.color}`} />
                 </div>
                 <h3 className="text-lg font-bold font-winky text-gray-900 dark:text-white mb-2">
                   {f.title}
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-lato leading-relaxed">
+                <p className="text-sm text-gray-600 dark:text-ink-400 font-lato leading-relaxed">
                   {f.desc}
                 </p>
               </motion.div>
@@ -755,14 +760,14 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-24 px-4 bg-gray-50 dark:bg-gray-900">
+      <section className="py-24 px-4 bg-gray-50 dark:bg-ink-900">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-extrabold font-winky text-gray-900 dark:text-white">
               Explore by genre
             </h2>
             <div className="section-line mt-3 h-1 w-24 mx-auto bg-green-400 rounded-full" />
-            <p className="mt-4 text-gray-500 dark:text-gray-400 font-lato text-lg max-w-md mx-auto">
+            <p className="mt-4 text-gray-500 dark:text-ink-400 font-lato text-lg max-w-md mx-auto">
               Twenty-four categories, millions of stories. Find your next obsession.
             </p>
           </div>
@@ -801,11 +806,11 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-24 px-4 bg-white dark:bg-gray-950">
+      <section className="py-24 px-4 bg-white dark:bg-ink-950">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-extrabold font-winky text-gray-900 dark:text-white">
-              Readers love it
+              How InkShelf works
             </h2>
             <div className="section-line mt-3 h-1 w-24 mx-auto bg-green-400 rounded-full" />
           </div>
@@ -814,28 +819,23 @@ export default function Home() {
             ref={testimonialRef}
             className="grid md:grid-cols-3 gap-6"
           >
-            {TESTIMONIALS.map((t, i) => (
+            {STEPS.map((step, i) => (
               <div
-                key={i}
-                className="testimonial-card rounded-3xl bg-gray-50 dark:bg-gray-800 p-7 border border-gray-100 dark:border-gray-700 hover:shadow-xl transition-shadow"
+                key={step.title}
+                className="testimonial-card relative rounded-3xl bg-gray-50 dark:bg-ink-800 p-7 border border-gray-100 dark:border-ink-700 hover:shadow-xl transition-shadow"
               >
-                <div className="flex gap-1 mb-4">
-                  {Array.from({ length: t.stars }).map((_, s) => (
-                    <Star key={s} className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  ))}
+                <span className="absolute right-6 top-5 font-winky text-5xl font-extrabold text-green-500/15 select-none">
+                  {i + 1}
+                </span>
+                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 dark:bg-green-900/40">
+                  <step.icon className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
-                <p className="text-gray-700 dark:text-gray-300 font-lato leading-relaxed italic mb-6">
-                  &ldquo;{t.text}&rdquo;
+                <h3 className="mb-2 text-lg font-bold font-winky text-gray-900 dark:text-white">
+                  {step.title}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-ink-300 font-lato leading-relaxed">
+                  {step.text}
                 </p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center text-xl">
-                    {t.avatar}
-                  </div>
-                  <div>
-                    <p className="font-bold text-gray-900 dark:text-white text-sm">{t.name}</p>
-                    <p className="text-xs text-gray-500">{t.handle}</p>
-                  </div>
-                </div>
               </div>
             ))}
           </div>
@@ -843,7 +843,7 @@ export default function Home() {
       </section>
 
       <section ref={ctaRef} className="py-24 px-4 relative overflow-hidden">
-        <div className="cta-bg absolute inset-0 bg-green-400 dark:bg-green-800" />
+        <div className="cta-bg absolute inset-0 bg-green-400 dark:bg-gradient-to-br dark:from-green-400 dark:via-green-500 dark:to-emerald-600" />
         <div className="relative z-10 max-w-4xl mx-auto text-center">
           <div className="cta-text text-4xl md:text-6xl font-extrabold font-winky text-black leading-tight">
             Ready to find your next<br />
@@ -877,7 +877,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="py-12 px-4 bg-gray-950 text-white">
+      <footer className="py-12 px-4 bg-gray-950 text-white dark:bg-ink-950 dark:border-t dark:border-ink-800">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <img src="/icon.png" alt="" className="w-8 h-8" />

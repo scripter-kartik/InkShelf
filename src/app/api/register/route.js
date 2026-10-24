@@ -2,9 +2,14 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectToDatabase, isDbConfigured } from "@/lib/mongodb";
 import User from "@/models/User";
+import { rateLimit, clientIp } from "@/lib/store";
 export async function POST(request) {
     if (!isDbConfigured()) {
         return NextResponse.json({ error: "Database not configured. Set MONGODB_URI to enable sign-up." }, { status: 503 });
+    }
+    const { allowed } = await rateLimit(`register:${clientIp(request.headers)}`, 5, 60 * 60 * 1000);
+    if (!allowed) {
+        return NextResponse.json({ error: "Too many sign-up attempts. Please try again later." }, { status: 429 });
     }
     let body;
     try {

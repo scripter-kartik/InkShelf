@@ -1,8 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRef } from "react";
-import { motion } from "framer-motion";
-import gsap from "gsap";
+import { motion, animate } from "framer-motion";
 import { BookOpen } from "lucide-react";
 import { coverUrl, workId, isOpenLibraryId } from "@/lib/openlibrary";
 
@@ -37,23 +36,18 @@ export default function BookCard({ book }) {
     const x = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2);
     const y = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2);
 
-    gsap.to(el, {
-      rotateY: x * 8,
-      rotateX: -y * 6,
-      duration: 0.4,
-      ease: "power2.out",
-      transformPerspective: 600,
-    });
+    animate(
+      el,
+      { rotateY: x * 8, rotateX: -y * 6, transformPerspective: 600 },
+      { duration: 0.4, ease: "easeOut" }
+    );
   };
 
   const handleMouseLeave = () => {
     clearTimeout(preloadTimer.current);
-    gsap.to(cardRef.current, {
-      rotateY: 0,
-      rotateX: 0,
-      duration: 0.5,
-      ease: "power3.out",
-    });
+    if (cardRef.current) {
+      animate(cardRef.current, { rotateY: 0, rotateX: 0 }, { duration: 0.5, ease: [0.22, 1, 0.36, 1] });
+    }
   };
 
   const handleSaveMeta = () => {
@@ -90,10 +84,10 @@ export default function BookCard({ book }) {
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onClick={handleSaveMeta}
-        className="group flex flex-col h-full rounded-2xl bg-white dark:bg-gray-800 shadow-md hover:shadow-xl transition-shadow duration-300 focus:outline-none focus:ring-2 focus:ring-green-500 overflow-hidden"
+        className="group flex flex-col h-full rounded-2xl bg-white dark:bg-ink-800 shadow-md hover:shadow-xl transition-shadow duration-300 focus:outline-none focus:ring-2 focus:ring-green-500 overflow-hidden"
         style={{ transformStyle: "preserve-3d" }}
       >
-        <div className="relative w-full aspect-[2/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
+        <div className="relative w-full aspect-[2/3] overflow-hidden bg-gray-100 dark:bg-ink-700">
           {cover ? (
             <motion.img
               ref={imgRef}
@@ -114,10 +108,10 @@ export default function BookCard({ book }) {
         </div>
 
         <div className="p-2.5 flex flex-col gap-0.5 flex-1">
-          <h3 className="line-clamp-2 text-xs font-semibold text-gray-900 dark:text-gray-100 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors leading-snug">
+          <h3 className="line-clamp-2 text-xs font-semibold text-gray-900 dark:text-ink-100 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors leading-snug">
             {book.title}
           </h3>
-          <p className="line-clamp-1 text-[10px] text-gray-500 dark:text-gray-400">
+          <p className="line-clamp-1 text-[10px] text-gray-500 dark:text-ink-400">
             {author}
           </p>
         </div>
