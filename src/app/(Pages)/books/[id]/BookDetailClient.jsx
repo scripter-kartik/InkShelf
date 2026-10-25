@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion, AnimatePresence, animate, stagger } from "framer-motion";
 import {
   BookOpen, ExternalLink, ArrowLeft, RefreshCw, AlertCircle,
-  X, Maximize2, Minimize2, Eye, EyeOff, Calendar, Hash, Globe, BookMarked, Sparkles
+  X, Maximize2, Minimize2, Eye, EyeOff, Calendar, Hash, Globe, BookMarked, Sparkles, Library
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import ReactMarkdown from 'react-markdown';
@@ -46,6 +46,12 @@ export default function BookDetailClient({ book, cover }) {
   };
 
   useEffect(() => {
+    if (book.freeEpubUrl) {
+      setGutenbergUrl(book.freeEpubUrl);
+      setSources((prev) => ({ ...prev, epubSource: "gutenberg", access: "public" }));
+      setIaLoading(false);
+      return;
+    }
     if (!book.title) return;
     let cancelled = false;
     setIaLoading(true);
@@ -72,7 +78,7 @@ export default function BookDetailClient({ book, cover }) {
     return () => {
       cancelled = true;
     };
-  }, [book.id, book.title, book.author]);
+  }, [book.id, book.title, book.author, book.freeEpubUrl]);
 
   const handleGetSummary = async () => {
     setIsSummaryLoading(true);
@@ -101,11 +107,29 @@ export default function BookDetailClient({ book, cover }) {
   const finalEpubUrl = epubUrl || gutenbergUrl;
   const canEmbed = localBook?.embeddable === true || !!iaId || !!gutenbergUrl;
   const isOpenLibraryBook = localBook?.source === "openlibrary";
+  const isGutenbergBook = localBook?.source === "gutenberg";
   const canSummarize = localBook?.source !== "mock" && localBook?.title !== "Fallback Offline Book";
-  const externalUrl = isOpenLibraryBook
+  const externalUrl = isOpenLibraryBook || isGutenbergBook
     ? localBook.readUrl
     : localBook.webReaderLink || localBook.readUrl || `https://books.google.com/books?id=${localBook.id}`;
   const readDisabled = iaLoading && !canEmbed && !finalEpubUrl;
+  const isLimitedPreview =
+    !finalEpubUrl && !iaId && localBook?.embeddable === true && localBook?.viewability !== "ALL_PAGES";
+  const fullyReadable = Boolean(finalEpubUrl || iaId || (localBook?.embeddable && localBook?.viewability === "ALL_PAGES"));
+  const showLibraryOptions = !iaLoading && !fullyReadable && canSummarize;
+
+  const wantsReadRef = useRef(null);
+  if (wantsReadRef.current === null && typeof window !== "undefined") {
+    wantsReadRef.current = new URLSearchParams(window.location.search).get("read") === "1";
+  }
+  useEffect(() => {
+    if (!wantsReadRef.current) return;
+    if (finalEpubUrl || (canEmbed && !iaLoading)) {
+      wantsReadRef.current = false;
+      if (!finalEpubUrl) setIframeLoaded(false);
+      setShowReader(true);
+    }
+  }, [finalEpubUrl, canEmbed, iaLoading]);
   const availabilityLabel = gutenbergUrl
     ? `Full book free${sources.epubSource === "standardebooks" ? " · Standard Ebooks" : " · Project Gutenberg"}`
     : iaId
@@ -116,7 +140,7 @@ export default function BookDetailClient({ book, cover }) {
       : "Preview available · Google Books"
     : sources.borrowUrl
     ? "Free to borrow · Open Library"
-    : "No free copy found";
+    : "Borrow with a library card";
   const embedUrl = iaId 
     ? `https://archive.org/embed/${iaId}?ui=embed` 
     : (localBook?.embeddable === true 
@@ -322,7 +346,7 @@ export default function BookDetailClient({ book, cover }) {
                   {readDisabled ? <RefreshCw className="h-5 w-5 animate-spin" /> : <BookOpen className="h-5 w-5" />}
                   {readDisabled
                     ? "Finding free copies…"
-                    : finalEpubUrl ? (epubUrl ? "Continue Reading EPUB" : "Read Full Book for Free") : (canEmbed ? "Read on InkShelf" : "Upload EPUB to Read")}
+                    : finalEpubUrl ? (epubUrl ? "Continue Reading EPUB" : "Read Full Book for Free") : (isLimitedPreview ? "Read free preview" : canEmbed ? "Read on InkShelf" : "Upload EPUB to Read")}
                 </motion.button>
                 
                 {canEmbed && !epubUrl && (
@@ -359,9 +383,13 @@ export default function BookDetailClient({ book, cover }) {
                   className="inline-flex items-center gap-2 rounded-full border-2 border-gray-400 px-5 py-2.5 font-semibold text-gray-700 hover:bg-gray-100 dark:text-ink-200 dark:hover:bg-ink-800 transition-colors"
                 >
                   <ExternalLink className="h-5 w-5" />
-                  {isOpenLibraryBook ? "Open on Open Library" : "Open on Google Books"}
+                  {isGutenbergBook ? "Open on Project Gutenberg" : isOpenLibraryBook ? "Open on Open Library" : "Open on Google Books"}
                 </motion.a>
               </div>
+
+              {showLibraryOptions && (
+                <LibraryOptions title={localBook.title} author={localBook.author} />
+              )}
 
               {localBook.description && (
                 <div className="pt-8">
@@ -511,22 +539,24 @@ export default function BookDetailClient({ book, cover }) {
                 {finalEpubUrl ? (
                   <EpubReaderComponent url={finalEpubUrl} title={localBook.title} bookKey={localBook.id} />
                 ) : canEmbed ? (
-                  <>
-                    {!iframeLoaded && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white dark:bg-ink-900 z-10">
-                        <RefreshCw className="w-8 h-8 text-green-500 animate-spin" />
-                        <p className="text-sm text-gray-500 dark:text-ink-400 font-lato">Loading book preview…</p>
-                      </div>
-                    )}
-                    <iframe
-                      key={localBook.id}
-                      src={embedUrl}
-                      className="w-full h-full border-0"
-                      allowFullScreen
-                      onLoad={() => setIframeLoaded(true)}
-                      title={localBook.title}
-                    />
-                  </>
+                  <div className="absolute inset-0 flex flex-col">
+                    <div className="relative flex-1">
+                      {!iframeLoaded && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white dark:bg-ink-900 z-10">
+                          <RefreshCw className="w-8 h-8 text-green-500 animate-spin" />
+                          <p className="text-sm text-gray-500 dark:text-ink-400 font-lato">Loading book preview…</p>
+                        </div>
+                      )}
+                      <iframe
+                        key={localBook.id}
+                        src={embedUrl}
+                        className="w-full h-full border-0"
+                        allowFullScreen
+                        onLoad={() => setIframeLoaded(true)}
+                        title={localBook.title}
+                      />
+                    </div>
+                  </div>
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 text-center bg-white dark:bg-ink-900">
                     <div className="w-20 h-20 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
@@ -570,6 +600,57 @@ export default function BookDetailClient({ book, cover }) {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function LibraryOptions({ title, author }) {
+  const q = encodeURIComponent(`${title} ${author && author !== "Unknown" ? author : ""}`.trim());
+  const links = [
+    {
+      href: `https://www.overdrive.com/search?q=${q}`,
+      label: "Borrow on Libby / OverDrive",
+      hint: "Free with your public library card",
+    },
+    {
+      href: `https://search.worldcat.org/search?q=${q}`,
+      label: "Find it in a library near you",
+      hint: "WorldCat shows libraries that have it",
+    },
+  ];
+
+  return (
+    <div id="library-options" className="mt-6 rounded-2xl border border-sky-200 bg-sky-50 p-5 dark:border-sky-900/40 dark:bg-sky-950/20">
+      <h2 className="flex items-center gap-2 font-winky text-lg font-bold text-gray-900 dark:text-white">
+        <Library className="h-5 w-5 text-sky-500" />
+        Read it free with a library
+      </h2>
+      <p className="mt-1 text-sm text-gray-600 dark:text-ink-300">
+        This book is still under copyright, so it can&apos;t be shared for free here — but libraries lend it at no cost.
+      </p>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {links.map((l) => (
+          <a
+            key={l.href}
+            href={l.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group rounded-xl border border-sky-200 bg-white px-4 py-3 transition-colors hover:border-sky-400 dark:border-sky-900/40 dark:bg-ink-900 dark:hover:border-sky-500"
+          >
+            <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 dark:text-white">
+              {l.label}
+              <ExternalLink className="h-3.5 w-3.5 opacity-60 group-hover:opacity-100" />
+            </span>
+            <span className="mt-0.5 block text-xs text-gray-500 dark:text-ink-400">{l.hint}</span>
+          </a>
+        ))}
+      </div>
+      <Link
+        href={`/searchedBooks?q=${q}&free=1`}
+        className="mt-3 inline-block text-sm font-semibold text-green-600 hover:underline dark:text-green-400"
+      >
+        Look for a free edition →
+      </Link>
     </div>
   );
 }

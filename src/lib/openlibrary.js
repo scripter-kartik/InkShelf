@@ -108,7 +108,17 @@ function normalizeVolume(item) {
         author_name: rawAuthors,
         cover_id: thumbnail,
         cover_i: null,
+        access: item.accessInfo?.viewability === "ALL_PAGES" ? "public" : null,
     };
+}
+function olAccess(doc) {
+    if (doc.ebook_access === "public" || doc.ebook_access === "borrowable")
+        return doc.ebook_access;
+    if (doc.public_scan === true)
+        return "public";
+    if (doc.availability?.available_to_borrow || doc.availability?.status === "borrow_available")
+        return "borrowable";
+    return null;
 }
 function normalizeOlDoc(doc) {
     const authors = doc.author_name || doc.authors?.map((a) => a.name).filter(Boolean) || [];
@@ -119,6 +129,24 @@ function normalizeOlDoc(doc) {
         author_name: authors,
         cover_id: doc.cover_i ?? doc.cover_id ?? null,
         cover_i: null,
+        access: olAccess(doc),
+    };
+}
+export function gutenbergAuthorName(name = "") {
+    const clean = name.replace(/\s*\(.*?\)\s*/g, " ").trim();
+    const parts = clean.split(/,\s*/);
+    return parts.length === 2 ? `${parts[1]} ${parts[0]}`.trim() : clean;
+}
+export function normalizeGutenberg(b) {
+    const authors = (b.authors || []).map((a) => gutenbergAuthorName(a.name)).filter(Boolean);
+    return {
+        key: `PG${b.id}`,
+        title: b.title || "Untitled",
+        authors: authors.map((name) => ({ name })),
+        author_name: authors,
+        cover_id: b.formats?.["image/jpeg"] || null,
+        cover_i: null,
+        access: "public",
     };
 }
 function mockToBook(m) {
@@ -186,7 +214,7 @@ export async function fetchBooksByGenre(genre, limit = 40) {
     return booksForSubject(genre, limit);
 }
 const SEARCH_PAGE_SIZE = 40;
-const OL_SEARCH_FIELDS = "key,title,author_name,cover_i";
+const OL_SEARCH_FIELDS = "key,title,author_name,cover_i,ebook_access";
 async function searchGoogle(query, page) {
     const startIndex = page * SEARCH_PAGE_SIZE;
     const data = await getJson(`${BASE}/volumes?q=${encodeURIComponent(query)}&maxResults=${SEARCH_PAGE_SIZE}&startIndex=${startIndex}&langRestrict=en`);
@@ -241,6 +269,77 @@ export async function searchBooks(query, { page = 0, source } = {}) {
 }
 export async function fetchBooksBySearch(query) {
     return (await searchBooks(query)).books;
+}
+const GUTENDEX = "https://gutendex.com/books/";
+const GUTENDEX_TIMEOUT_MS = 150000;
+const FREE_SEARCH_WAIT_MS = 20000;
+async function getGutendex(params) {
+    const qs = new URLSearchParams({ languages: "en", ...params });
+    const res = await fetch(`${GUTENDEX}?${qs}`, {
+        ...SERVER_CACHE,
+        signal: AbortSignal.timeout(GUTENDEX_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+        const err = new Error(`Gutendex request failed (${res.status})`);
+        err.status = res.status;
+        throw err;
+    }
+    return res.json();
+}
+function readableGutenberg(b) {
+    return b.media_type === "Text" && Boolean(b.formats?.["application/epub+zip"]);
+}
+/**
+ * Free, fully readable classics from Project Gutenberg (via Gutendex), most popular first.
+ * Returns { books, hasMore, total }. `page` is 0-based.
+ */
+export async function fetchFreeBooks({ topic = "", search = "", page = 0 } = {}) {
+    if (IS_BROWSER) {
+        return viaApi({ type: "free", ...(topic ? { topic } : {}), ...(search ? { q: search } : {}), page });
+    }
+    const data = await getGutendex({
+        ...(topic ? { topic } : {}),
+        ...(search ? { search } : {}),
+        page: String(page + 1),
+    });
+    return {
+        books: deduplicateBooks((data.results || []).filter(readableGutenberg).map(normalizeGutenberg)),
+        hasMore: Boolean(data.next),
+        total: data.count || 0,
+    };
+}
+/**
+ * Search restricted to books that can be read in full for free: Project Gutenberg
+ * (opens in the InkShelf reader) plus Google Books' free public-domain editions.
+ * Gutendex can be slow, so the two run in parallel and either may be missing.
+ */
+export async function searchFreeBooks(query, { page = 0 } = {}) {
+    if (IS_BROWSER) {
+        return viaApi({ type: "search", q: query, page, free: "1" });
+    }
+    const gutendex = fetchFreeBooks({ search: query, page });
+    gutendex.catch(() => {});
+    const [gut, google] = await Promise.allSettled([
+        Promise.race([
+            gutendex,
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Gutendex still loading")), FREE_SEARCH_WAIT_MS)),
+        ]),
+        getJson(`${BASE}/volumes?q=${encodeURIComponent(query)}&filter=free-ebooks&maxResults=${SEARCH_PAGE_SIZE}&startIndex=${page * SEARCH_PAGE_SIZE}&langRestrict=en`),
+    ]);
+    const gutBooks = gut.status === "fulfilled" ? gut.value.books : [];
+    const googleItems = google.status === "fulfilled" ? google.value.items || [] : [];
+    const googleBooks = googleItems.map(normalizeVolume).filter((b) => b.access === "public");
+    if (gut.status === "rejected" && google.status === "rejected") {
+        throw gut.reason;
+    }
+    return {
+        books: deduplicateBooks([...gutBooks, ...googleBooks]),
+        hasMore:
+            (gut.status === "fulfilled" && gut.value.hasMore) ||
+            (google.status === "fulfilled" && googleItems.length === SEARCH_PAGE_SIZE),
+        source: "free",
+        partial: gut.status === "rejected",
+    };
 }
 export async function fetchSuggestions(query, limit = 5, signal) {
     if (IS_BROWSER) {
@@ -350,6 +449,9 @@ function offlineFallback(id) {
         readUrl: null
     };
 }
+export function isGutenbergId(id) {
+    return /^PG\d+$/i.test(String(id));
+}
 export function isOpenLibraryId(id) {
     return /^OL\d+W$/i.test(String(id));
 }
@@ -389,7 +491,7 @@ async function fetchOpenLibraryWorkDetail(id) {
 const DETAIL_TTL_MS = 12 * 60 * 60 * 1000;
 const DETAIL_FALLBACK_TTL_MS = 60 * 1000;
 const DETAIL_CACHE_MAX = 1000;
-const DETAIL_CACHE_VERSION = 3;
+const DETAIL_CACHE_VERSION = 4;
 const detailCache = IS_BROWSER ? null : (() => {
     const existing = globalThis.__inkshelfDetailCache;
     if (existing?.version === DETAIL_CACHE_VERSION)
@@ -415,6 +517,53 @@ export async function fetchWorkDetail(id) {
     }, () => detailCache.delete(key));
     return promise;
 }
+function cleanGutenbergSubjects(subjects = []) {
+    const out = [];
+    for (const raw of subjects) {
+        const label = raw.split(" -- ")[0].replace(/\s*\(.*?\)\s*$/, "").trim();
+        if (label && !out.includes(label)) out.push(label);
+    }
+    return out.slice(0, 12);
+}
+async function fetchGutenbergDetail(id) {
+    const n = String(id).replace(/^PG/i, "");
+    const res = await fetch(`${GUTENDEX}${n}/`, {
+        ...SERVER_CACHE,
+        signal: AbortSignal.timeout(GUTENDEX_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+        const err = new Error(`Gutendex request failed (${res.status})`);
+        err.status = res.status;
+        throw err;
+    }
+    const b = await res.json();
+    const epub = b.formats?.["application/epub+zip"];
+    if (!epub) {
+        const err = new Error("No EPUB for this Gutenberg book");
+        err.status = 404;
+        throw err;
+    }
+    const author = (b.authors || []).map((a) => gutenbergAuthorName(a.name)).filter(Boolean)[0] || "Unknown";
+    return {
+        id: `PG${n}`,
+        key: `/gutenberg/${n}`,
+        title: b.title || "Untitled",
+        description: (b.summaries || [])[0]?.replace(/\s*\(This is an automatically generated summary\.\)\s*$/i, "") || "",
+        author,
+        coverId: b.formats?.["image/jpeg"] || null,
+        subjects: cleanGutenbergSubjects([...(b.subjects || []), ...(b.bookshelves || []).map((x) => x.replace(/^Category:\s*/, ""))]),
+        firstPublishYear: null,
+        readUrl: `https://www.gutenberg.org/ebooks/${n}`,
+        freeEpubUrl: `/api/proxy-epub?url=${encodeURIComponent(epub)}`,
+        embeddable: false,
+        viewability: "ALL_PAGES",
+        webReaderLink: null,
+        pageCount: null,
+        publisher: "Project Gutenberg",
+        language: (b.languages || [])[0] || null,
+        source: "gutenberg",
+    };
+}
 async function fetchWorkDetailUncached(id) {
     if (String(id).startsWith("mock_")) {
         const found = allMocks().find(m => m.id === id);
@@ -426,6 +575,16 @@ async function fetchWorkDetailUncached(id) {
             const dynFound = mocks[parseInt(match[2], 10) - 1] || mocks[0];
             if (dynFound)
                 return mockDetail(dynFound);
+        }
+    }
+    if (isGutenbergId(id)) {
+        try {
+            return await fetchGutenbergDetail(id);
+        }
+        catch (err) {
+            if (err.status === 404)
+                throw err;
+            return offlineFallback(id);
         }
     }
     if (isOpenLibraryId(id)) {

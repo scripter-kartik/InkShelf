@@ -204,6 +204,16 @@ export default function Navbar() {
               </AnimatePresence>
             </div>
 
+            <Link
+              href="/free"
+              {...intro(1, "hidden lg:inline-flex items-center gap-1.5 whitespace-nowrap font-winky text-lg font-semibold text-black dark:text-white hover:opacity-80")}
+            >
+              Free Library
+              <span className="rounded-full bg-black px-1.5 py-0.5 font-lato text-[10px] font-bold uppercase text-green-400 dark:bg-green-500 dark:text-black">
+                Free
+              </span>
+            </Link>
+
             <div {...intro(2, "relative hidden lg:block")} ref={searchRef}>
               <motion.div
                 animate={showSuggestions ? { scale: 1.01 } : { scale: 1 }}
@@ -407,6 +417,7 @@ export default function Navbar() {
             >
               {session?.user ? (
                 <div className="flex flex-col gap-2">
+                  <MobileLink href="/free" label="Free Library" onClick={() => setMenuOpen(false)} />
                   <MobileLink href="/profile" label="Profile" onClick={() => setMenuOpen(false)} />
                   <MobileLink href="/favorites" label="Favorites" onClick={() => setMenuOpen(false)} />
                   <MobileLink href="/shelf" label="My Shelf" onClick={() => setMenuOpen(false)} />
@@ -419,7 +430,8 @@ export default function Navbar() {
                   </motion.button>
                 </div>
               ) : (
-                <div className="flex gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <MobileLink href="/free" label="Free Library" onClick={() => setMenuOpen(false)} />
                   <motion.button
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}

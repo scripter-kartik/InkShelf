@@ -7,7 +7,7 @@ import { coverUrl, workId, isOpenLibraryId } from "@/lib/openlibrary";
 
 const preloaded = new Set();
 
-export default function BookCard({ book }) {
+export default function BookCard({ book, readNow = false }) {
   const id = workId(book.key);
   const cover = coverUrl(book.cover_id ?? book.cover_i, "M");
   const author =
@@ -76,7 +76,7 @@ export default function BookCard({ book }) {
       className="h-full"
     >
       <Link
-        href={`/books/${id}`}
+        href={`/books/${id}${readNow ? "?read=1" : ""}`}
         ref={cardRef}
         onMouseEnter={() => preload(150)}
         onFocus={() => preload(150)}
@@ -105,6 +105,7 @@ export default function BookCard({ book }) {
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <AccessBadge access={book.access} />
         </div>
 
         <div className="p-2.5 flex flex-col gap-0.5 flex-1">
@@ -117,5 +118,20 @@ export default function BookCard({ book }) {
         </div>
       </Link>
     </motion.div>
+  );
+}
+
+export function AccessBadge({ access, className = "" }) {
+  if (access !== "public" && access !== "borrowable") return null;
+  const free = access === "public";
+  return (
+    <span
+      className={`absolute left-1.5 top-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide shadow-md ${
+        free ? "bg-green-500 text-black" : "bg-sky-500 text-white"
+      } ${className}`}
+      title={free ? "Free to read in full" : "Free to borrow from Open Library"}
+    >
+      {free ? "Free" : "Borrow"}
+    </span>
   );
 }

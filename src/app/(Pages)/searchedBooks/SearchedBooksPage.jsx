@@ -6,7 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Search, X, BookOpen, SlidersHorizontal } from "lucide-react";
 import Navbar from "../../components/Navbar";
 import BookCard from "@/components/BookCard";
-import { searchBooks, fetchSuggestions } from "@/lib/openlibrary";
+import { searchBooks, searchFreeBooks, fetchSuggestions } from "@/lib/openlibrary";
+
+const runSearch = (free, term, opts) => (free ? searchFreeBooks(term, opts) : searchBooks(term, opts));
 
 const cardVariants = {
   hidden: { opacity: 0, y: 24 },
@@ -51,6 +53,7 @@ export default function SearchedBooks() {
 
   const searchParams = useSearchParams();
   const searchTerm = searchParams.get("q") || "";
+  const freeOnly = searchParams.get("free") === "1";
   const router = useRouter();
   const inputRef = useRef(null);
   const searchRef = useRef(null);
@@ -66,7 +69,7 @@ export default function SearchedBooks() {
       setPage(0);
       setHasMore(false);
       try {
-        const result = await searchBooks(searchTerm);
+        const result = await runSearch(freeOnly, searchTerm);
         if (cancelled) return;
         setBooks(result.books);
         setSource(result.source);
@@ -79,14 +82,14 @@ export default function SearchedBooks() {
     };
     fetchBooks();
     return () => { cancelled = true; };
-  }, [searchTerm]);
+  }, [searchTerm, freeOnly]);
 
   const loadMore = async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
       const next = page + 1;
-      const result = await searchBooks(searchTerm, { page: next, source });
+      const result = await runSearch(freeOnly, searchTerm, { page: next, source });
       setBooks((prev) => {
         const seen = new Set(prev.map((b) => b.key));
         return [...prev, ...result.books.filter((b) => !seen.has(b.key))];
@@ -135,7 +138,7 @@ export default function SearchedBooks() {
     const q = (term ?? query).trim();
     if (!q) return;
     setShowSuggestions(false);
-    router.push(`/searchedBooks?q=${encodeURIComponent(q)}`);
+    router.push(`/searchedBooks?q=${encodeURIComponent(q)}${freeOnly ? "&free=1" : ""}`);
   };
 
   const clearQuery = () => {
@@ -258,9 +261,27 @@ export default function SearchedBooks() {
                 transition={{ delay: 0.3 }}
                 className="text-xs text-gray-500 dark:text-ink-400 mt-0.5 font-lato"
               >
-                {books.length}{hasMore ? "+" : ""} book{books.length !== 1 ? "s" : ""} found
+                {books.length}{hasMore ? "+" : ""} {freeOnly ? "free " : ""}book{books.length !== 1 ? "s" : ""} found
               </motion.p>
             )}
+            <label className="mt-2 inline-flex cursor-pointer items-center gap-2 select-none">
+              <span className="relative inline-flex">
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={freeOnly}
+                  onChange={(e) =>
+                    router.push(
+                      `/searchedBooks?q=${encodeURIComponent(searchTerm)}${e.target.checked ? "&free=1" : ""}`
+                    )
+                  }
+                  className="peer sr-only"
+                />
+                <span className="h-5 w-9 rounded-full bg-gray-300 transition-colors peer-checked:bg-green-500 peer-focus-visible:ring-2 peer-focus-visible:ring-green-400 dark:bg-ink-700" />
+                <span className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4" />
+              </span>
+              <span className="text-sm font-semibold text-gray-700 dark:text-ink-200">Free to read only</span>
+            </label>
           </motion.div>
 
           {!loading && books.length > 0 && (

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { coverUrl, workId, parseDescription } from "@/lib/openlibrary";
+import { coverUrl, workId, parseDescription, gutenbergAuthorName, normalizeGutenberg, isGutenbergId } from "@/lib/openlibrary";
 describe("coverUrl", () => {
     it("returns a Google Books https URL unchanged (after http→https upgrade)", () => {
         const input = "http://books.google.com/books/content?id=abc&printsec=frontcover";
@@ -69,5 +69,33 @@ describe("parseDescription", () => {
     });
     it("handles empty input", () => {
         expect(parseDescription()).toEqual({ html: "", text: "" });
+    });
+});
+describe("Project Gutenberg helpers", () => {
+    it("turns catalogue names into reading order", () => {
+        expect(gutenbergAuthorName("Austen, Jane")).toBe("Jane Austen");
+        expect(gutenbergAuthorName("Wells, H. G. (Herbert George)")).toBe("H. G. Wells");
+        expect(gutenbergAuthorName("Homer")).toBe("Homer");
+    });
+    it("normalises Gutendex books into free cards", () => {
+        const book = normalizeGutenberg({
+            id: 1342,
+            title: "Pride and Prejudice",
+            authors: [{ name: "Austen, Jane" }],
+            formats: { "image/jpeg": "https://www.gutenberg.org/cache/epub/1342/pg1342.cover.medium.jpg" },
+        });
+        expect(book).toMatchObject({
+            key: "PG1342",
+            title: "Pride and Prejudice",
+            author_name: ["Jane Austen"],
+            access: "public",
+        });
+        expect(coverUrl(book.cover_id)).toContain("pg1342.cover");
+        expect(workId(book.key)).toBe("PG1342");
+    });
+    it("recognises Gutenberg ids", () => {
+        expect(isGutenbergId("PG1342")).toBe(true);
+        expect(isGutenbergId("OL27482W")).toBe(false);
+        expect(isGutenbergId("zyTCAlFPjgYC")).toBe(false);
     });
 });

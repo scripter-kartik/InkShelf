@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
 import { cacheGet, cacheSet } from "@/lib/store";
-import { fetchBooksByGenre, searchBooks, fetchSuggestions, fetchWorkDetail } from "@/lib/openlibrary";
+import {
+  fetchBooksByGenre,
+  searchBooks,
+  searchFreeBooks,
+  fetchFreeBooks,
+  fetchSuggestions,
+  fetchWorkDetail,
+} from "@/lib/openlibrary";
 
 const TTL_MS = {
   subject: 12 * 60 * 60 * 1000,
   search: 6 * 60 * 60 * 1000,
   suggest: 6 * 60 * 60 * 1000,
+  free: 24 * 60 * 60 * 1000,
 };
 const FALLBACK_TTL_MS = 2 * 60 * 1000;
 const inFlight = new Map();
@@ -39,10 +47,26 @@ function parse(searchParams) {
   }
 
   const q = (searchParams.get("q") || "").trim().slice(0, 200);
+  const page = Math.min(Math.max(parseInt(searchParams.get("page") || "0", 10) || 0, 0), 200);
+
+  if (type === "free") {
+    const topic = (searchParams.get("topic") || "").toLowerCase().trim().slice(0, 40);
+    if (topic && !/^[a-z][a-z ]*$/.test(topic)) return null;
+    return { type, cacheKey: `free|${topic}|${q.toLowerCase()}|${page}`, run: async () => {
+      const data = await fetchFreeBooks({ topic, search: q, page });
+      return { data, placeholder: false };
+    } };
+  }
+
   if (!q) return null;
 
   if (type === "search") {
-    const page = Math.min(Math.max(parseInt(searchParams.get("page") || "0", 10) || 0, 0), 50);
+    if (searchParams.get("free") === "1") {
+      return { type, cacheKey: `search-free|${q.toLowerCase()}|${page}`, run: async () => {
+        const data = await searchFreeBooks(q, { page });
+        return { data, placeholder: Boolean(data.partial) };
+      } };
+    }
     const sourceParam = searchParams.get("source");
     const source = SOURCES.has(sourceParam) ? sourceParam : undefined;
     return { type, cacheKey: `search|${q.toLowerCase()}|${page}|${source || ""}`, run: async () => {

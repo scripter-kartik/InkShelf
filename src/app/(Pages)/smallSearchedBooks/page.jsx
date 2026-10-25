@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { Search, X, ChevronLeft, Sparkles, TrendingUp, BookOpen } from "lucide-react";
 import { CATEGORIES, GENRES } from "@/lib/constants";
+import { AccessBadge } from "@/components/BookCard";
 import { fetchBooksByCategories, fetchSuggestions, coverUrl, workId } from "@/lib/openlibrary";
 
 const BATCH_SIZE = 3;
@@ -141,6 +142,7 @@ function BookCard({ book, index }) {
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-active:opacity-100 transition-opacity" />
+          <AccessBadge access={book.access} />
         </div>
         <div className="p-2.5 flex flex-col gap-0.5 flex-1">
           <h3 className="text-xs font-semibold text-gray-900 dark:text-ink-100 line-clamp-2 leading-snug group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">

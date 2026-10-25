@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, animate } from "framer-motion";
@@ -6,6 +7,17 @@ import Navbar from "../../components/Navbar";
 import BookCard from "@/components/BookCard";
 import { fetchBooksByGenre } from "@/lib/openlibrary";
 import { BookOpen } from "lucide-react";
+
+const FREE_TOPIC_FOR_GENRE = {
+  mystery: "detective",
+  romance: "love stories",
+  science_fiction: "science fiction",
+  historical_fiction: "historical fiction",
+  young_adult: "children",
+  self_help: "conduct of life",
+  true_crime: "crime",
+  cooking: "cooking",
+};
 
 const cardVariants = {
   hidden: { opacity: 0, y: 28, scale: 0.95 },
@@ -72,6 +84,14 @@ export default function GenrePageContent() {
             <h1 className="text-2xl md:text-3xl font-extrabold font-winky text-black dark:text-white capitalize">
               {displayName}
             </h1>
+            {genre && (
+              <Link
+                href={`/free?topic=${encodeURIComponent(FREE_TOPIC_FOR_GENRE[genre] || genre.replace(/_/g, " "))}`}
+                className="rounded-full bg-black px-3 py-1.5 text-xs font-semibold text-green-400 hover:opacity-90 dark:bg-green-500 dark:text-black"
+              >
+                Read free {displayName?.toLowerCase()} classics →
+              </Link>
+            )}
             {!loading && books.length > 0 && (
               <motion.span
                 initial={{ opacity: 0 }}
