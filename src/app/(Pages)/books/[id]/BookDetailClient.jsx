@@ -9,6 +9,8 @@ import {
 import dynamic from "next/dynamic";
 import ReactMarkdown from 'react-markdown';
 import ShelfControls from "@/components/ShelfControls";
+import KeyIdeas from "@/components/KeyIdeas";
+import AudiobookPlayer from "@/components/AudiobookPlayer";
 import { coverUrl, isOpenLibraryId } from "@/lib/openlibrary";
 
 const EpubReaderComponent = dynamic(() => import("@/components/EpubReaderComponent"), { ssr: false });
@@ -24,6 +26,7 @@ export default function BookDetailClient({ book, cover }) {
   const contentRef = useRef(null);
 
   const [aiSummary, setAiSummary] = useState(null);
+  const [aiTab, setAiTab] = useState("ideas");
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState(null);
 
@@ -387,6 +390,10 @@ export default function BookDetailClient({ book, cover }) {
                 </motion.a>
               </div>
 
+              {canSummarize && (
+                <AudiobookPlayer title={localBook.title} author={localBook.author} bookKey={localBook.id} />
+              )}
+
               {showLibraryOptions && (
                 <LibraryOptions title={localBook.title} author={localBook.author} />
               )}
@@ -410,12 +417,36 @@ export default function BookDetailClient({ book, cover }) {
               )}
 
               <div className="pt-8">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white font-winky flex items-center gap-2">
                     <Sparkles className="w-5 h-5 text-purple-500" />
-                    AI Book Summary
+                    AI Book Insights
                   </h2>
+                  {canSummarize && (
+                    <div className="flex rounded-full bg-gray-100 p-1 dark:bg-ink-800" role="tablist">
+                      {[
+                        { value: "ideas", label: "Key ideas" },
+                        { value: "summary", label: "Summary" },
+                      ].map((t) => (
+                        <button
+                          key={t.value}
+                          role="tab"
+                          aria-selected={aiTab === t.value}
+                          onClick={() => setAiTab(t.value)}
+                          className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+                            aiTab === t.value
+                              ? "bg-white text-gray-900 shadow dark:bg-ink-950 dark:text-white"
+                              : "text-gray-500 hover:text-gray-800 dark:text-ink-400 dark:hover:text-white"
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+                {canSummarize && aiTab === "ideas" && <KeyIdeas book={localBook} />}
                 
                 {!canSummarize && (
                   <p className="p-6 rounded-2xl bg-gray-50 dark:bg-ink-900/50 border border-gray-100 dark:border-ink-800 text-center text-sm text-gray-500 dark:text-ink-400">
@@ -423,7 +454,7 @@ export default function BookDetailClient({ book, cover }) {
                   </p>
                 )}
 
-                {canSummarize && !aiSummary && !isSummaryLoading && (
+                {canSummarize && aiTab === "summary" && !aiSummary && !isSummaryLoading && (
                   <motion.div 
                     whileHover={{ scale: 1.01 }}
                     className="p-6 rounded-2xl bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-100 dark:border-purple-800/30 flex flex-col items-center text-center shadow-inner"
@@ -448,7 +479,7 @@ export default function BookDetailClient({ book, cover }) {
                   </motion.div>
                 )}
 
-                {isSummaryLoading && (
+                {aiTab === "summary" && isSummaryLoading && (
                   <div className="p-8 rounded-2xl bg-gray-50 dark:bg-ink-900/50 border border-gray-100 dark:border-ink-800 flex flex-col items-center text-center">
                     <RefreshCw className="w-8 h-8 text-purple-500 animate-spin mb-4" />
                     <p className="text-gray-600 dark:text-ink-400 font-medium animate-pulse">
@@ -457,7 +488,7 @@ export default function BookDetailClient({ book, cover }) {
                   </div>
                 )}
 
-                {aiSummary && !isSummaryLoading && (
+                {aiTab === "summary" && aiSummary && !isSummaryLoading && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}

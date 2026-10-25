@@ -2,19 +2,64 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { BookOpen, Search, Sparkles, X, RefreshCw } from "lucide-react";
+import { BookOpen, Search, Sparkles, X, RefreshCw, GraduationCap, Library, ExternalLink } from "lucide-react";
 import Navbar from "@/app/components/Navbar";
 import BookCard from "@/components/BookCard";
-import { fetchFreeBooks } from "@/lib/openlibrary";
+import { fetchFreeBooks, fetchTextbooks } from "@/lib/openlibrary";
 import { FREE_TOPICS } from "@/lib/freeTopics";
 
 const TOPICS = FREE_TOPICS;
 
+const TEXTBOOK_SUBJECTS = [
+  { value: "", label: "All textbooks" },
+  { value: "psychology", label: "Psychology" },
+  { value: "business", label: "Business" },
+  { value: "economics", label: "Economics" },
+  { value: "computer science", label: "Computer Science" },
+  { value: "programming", label: "Programming" },
+  { value: "mathematics", label: "Mathematics" },
+  { value: "statistics", label: "Statistics" },
+  { value: "biology", label: "Biology" },
+  { value: "chemistry", label: "Chemistry" },
+  { value: "physics", label: "Physics" },
+  { value: "history", label: "History" },
+  { value: "philosophy", label: "Philosophy" },
+  { value: "sociology", label: "Sociology" },
+  { value: "writing", label: "Writing" },
+  { value: "law", label: "Law" },
+  { value: "health", label: "Health" },
+];
+
+const COVER_GRADIENTS = [
+  "from-emerald-500 to-teal-700",
+  "from-sky-500 to-indigo-700",
+  "from-amber-500 to-orange-700",
+  "from-rose-500 to-pink-700",
+  "from-violet-500 to-purple-800",
+  "from-lime-500 to-green-700",
+  "from-cyan-500 to-blue-700",
+];
+
+function gradientFor(title = "") {
+  let h = 0;
+  for (const ch of title) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return COVER_GRADIENTS[h % COVER_GRADIENTS.length];
+}
+
 export default function FreeLibrary() {
   const params = useSearchParams();
   const router = useRouter();
+  const collection = params.get("collection") === "textbooks" ? "textbooks" : "classics";
+  const isTextbooks = collection === "textbooks";
   const topic = params.get("topic") || "";
   const search = params.get("q") || "";
+  const load = useCallback(
+    (page) =>
+      isTextbooks
+        ? fetchTextbooks({ search: search || topic, page })
+        : fetchFreeBooks({ topic, search, page }),
+    [isTextbooks, topic, search]
+  );
 
   const [query, setQuery] = useState(search);
   const [books, setBooks] = useState([]);
@@ -37,7 +82,7 @@ export default function FreeLibrary() {
     setError(false);
     setBooks([]);
     setPage(0);
-    fetchFreeBooks({ topic, search, page: 0 })
+    load(0)
       .then((data) => {
         if (id !== requestRef.current) return;
         setBooks(data.books || []);
@@ -50,7 +95,7 @@ export default function FreeLibrary() {
       .finally(() => {
         if (id === requestRef.current) setLoading(false);
       });
-  }, [topic, search, attempt]);
+  }, [load, attempt]);
 
   const [slow, setSlow] = useState(false);
   useEffect(() => {
@@ -67,7 +112,7 @@ export default function FreeLibrary() {
     setLoadingMore(true);
     const next = page + 1;
     try {
-      const data = await fetchFreeBooks({ topic, search, page: next });
+      const data = await load(next);
       setBooks((prev) => {
         const seen = new Set(prev.map((b) => b.key));
         return [...prev, ...(data.books || []).filter((b) => !seen.has(b.key))];
@@ -79,18 +124,21 @@ export default function FreeLibrary() {
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, page, topic, search]);
+  }, [loadingMore, hasMore, page, load]);
 
   const go = (next) => {
     const qs = new URLSearchParams();
+    const nextCollection = next.collection ?? collection;
+    if (nextCollection === "textbooks") qs.set("collection", "textbooks");
     if (next.topic) qs.set("topic", next.topic);
     if (next.q) qs.set("q", next.q);
     router.push(`/free${qs.toString() ? `?${qs}` : ""}`);
   };
 
+  const chips = isTextbooks ? TEXTBOOK_SUBJECTS : TOPICS;
   const heading = search
-    ? `Free books matching “${search}”`
-    : TOPICS.find((t) => t.value === topic)?.label || "Free classics";
+    ? `Free ${isTextbooks ? "textbooks" : "books"} matching “${search}”`
+    : chips.find((t) => t.value === topic)?.label || (isTextbooks ? "Free textbooks" : "Free classics");
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-ink-950">
@@ -106,8 +154,9 @@ export default function FreeLibrary() {
             The Free Library
           </h1>
           <p className="mt-2 max-w-2xl font-lato text-black/75 dark:text-ink-300 md:text-lg">
-            75,000+ classics you can read in full, right here — with page numbers, bookmarks, highlights and notes.
-            Every book on this page opens instantly.
+            {isTextbooks
+              ? "2,000+ modern, openly licensed textbooks — psychology, business, coding, science and more — free to read in full online."
+              : "75,000+ classics you can read in full, right here — with page numbers, bookmarks, highlights and notes. Every book on this page opens instantly."}
           </p>
 
           <form
@@ -121,7 +170,7 @@ export default function FreeLibrary() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search free books by title or author…"
+              placeholder={isTextbooks ? "Search free textbooks by subject or title…" : "Search free books by title or author…"}
               className="h-12 flex-1 bg-transparent font-lato text-sm outline-none dark:text-white"
               aria-label="Search the free library"
             />
@@ -134,13 +183,36 @@ export default function FreeLibrary() {
               Search
             </button>
           </form>
+
+          <div className="mt-5 inline-flex rounded-2xl bg-black/10 p-1 dark:bg-white/5" role="tablist" aria-label="Collection">
+            {[
+              { value: "classics", label: "Classics", hint: "Read here", icon: Library },
+              { value: "textbooks", label: "Textbooks", hint: "Modern & open", icon: GraduationCap },
+            ].map((c) => (
+              <button
+                key={c.value}
+                role="tab"
+                aria-selected={collection === c.value}
+                onClick={() => go({ collection: c.value, topic: "", q: "" })}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                  collection === c.value
+                    ? "bg-white text-black shadow dark:bg-green-500"
+                    : "text-black/70 hover:text-black dark:text-ink-300 dark:hover:text-white"
+                }`}
+              >
+                <c.icon className="h-4 w-4" />
+                {c.label}
+                <span className="hidden text-xs font-normal opacity-70 sm:inline">· {c.hint}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
       <div className="mx-auto max-w-[1600px] px-3 py-6 md:px-6">
         {!search && (
           <div className="no-scrollbar -mx-3 mb-6 flex gap-2 overflow-x-auto px-3 pb-1">
-            {TOPICS.map((t) => (
+            {chips.map((t) => (
               <button
                 key={t.value || "popular"}
                 onClick={() => go({ topic: t.value, q: "" })}
@@ -209,7 +281,7 @@ export default function FreeLibrary() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.35, delay: Math.min((i % 32) * 0.03, 0.5) }}
                 >
-                  <BookCard book={book} readNow />
+                  {isTextbooks ? <TextbookCard book={book} /> : <BookCard book={book} readNow />}
                 </motion.div>
               ))}
             </div>
@@ -228,5 +300,37 @@ export default function FreeLibrary() {
         )}
       </div>
     </div>
+  );
+}
+
+function TextbookCard({ book }) {
+  return (
+    <a
+      href={book.readUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-md transition-shadow hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-ink-800"
+      title={`Read “${book.title}” free online`}
+    >
+      <div className={`relative flex aspect-[2/3] w-full flex-col justify-between bg-gradient-to-br p-3 text-white ${gradientFor(book.title)}`}>
+        <span className="self-start rounded-full bg-black/25 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">Free</span>
+        <span className="line-clamp-5 font-winky text-base font-bold leading-snug drop-shadow-sm">{book.title}</span>
+        <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide opacity-80">
+          <GraduationCap className="h-3.5 w-3.5" /> Open textbook
+        </span>
+      </div>
+      <div className="flex flex-1 flex-col gap-1 p-2.5">
+        <p className="line-clamp-1 text-[10px] text-gray-500 dark:text-ink-400">
+          {book.author_name[0] || book.publisher || "Open Textbook Library"}
+          {book.year ? ` · ${book.year}` : ""}
+        </p>
+        {book.subjects.length > 0 && (
+          <p className="line-clamp-1 text-[10px] text-gray-400 dark:text-ink-500">{book.subjects.join(" · ")}</p>
+        )}
+        <span className="mt-auto inline-flex items-center gap-1 pt-1 text-xs font-semibold text-green-600 group-hover:underline dark:text-green-400">
+          Read free online <ExternalLink className="h-3 w-3" />
+        </span>
+      </div>
+    </a>
   );
 }

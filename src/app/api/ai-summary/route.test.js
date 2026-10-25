@@ -7,6 +7,7 @@ vi.mock("@google/genai", () => ({
       this.models = { generateContent };
     }
   },
+  Type: { OBJECT: "OBJECT", STRING: "STRING", INTEGER: "INTEGER", ARRAY: "ARRAY" },
 }));
 
 process.env.GEMINI_API_KEY = "test-key";
@@ -86,5 +87,45 @@ describe("/api/ai-summary", () => {
     }
     expect(statuses.slice(0, 10).every((s) => s === 200)).toBe(true);
     expect(statuses[10]).toBe(429);
+  });
+
+  it("returns structured key ideas in JSON mode", async () => {
+    generateContent.mockResolvedValue({
+      text: JSON.stringify({
+        basedOn: "knowledge",
+        oneLiner: "Small habits compound.",
+        readingMinutes: 12,
+        ideas: [
+          { title: "Compound growth", explanation: "Tiny gains add up.", takeaway: "Improve 1% a day." },
+          { title: "Identity", explanation: "Habits shape who you are.", takeaway: "Decide who to be." },
+        ],
+        whoShouldRead: "Anyone building habits.",
+      }),
+    });
+    const res = await summarize({ mode: "ideas", title: "Atomic Habits", author: "James Clear" });
+    expect(res.status).toBe(200);
+    const { ideas } = await res.json();
+    expect(ideas.ideas).toHaveLength(2);
+    expect(ideas.oneLiner).toBe("Small habits compound.");
+    const config = generateContent.mock.calls[0][0].config;
+    expect(config.responseMimeType).toBe("application/json");
+    expect(generateContent.mock.calls[0][0].contents).toMatch(/never quote or reproduce/i);
+  });
+
+  it("caches key ideas separately from the summary", async () => {
+    generateContent.mockResolvedValueOnce({ text: "plain summary" });
+    await summarize({ title: "Walden", author: "Henry David Thoreau" });
+    generateContent.mockResolvedValueOnce({
+      text: JSON.stringify({ basedOn: "knowledge", oneLiner: "Live deliberately.", ideas: [], whoShouldRead: "" }),
+    });
+    const res = await summarize({ mode: "ideas", title: "Walden", author: "Henry David Thoreau" });
+    expect((await res.json()).ideas.oneLiner).toBe("Live deliberately.");
+    expect(generateContent).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects malformed key-ideas output", async () => {
+    generateContent.mockResolvedValue({ text: "not json" });
+    const res = await summarize({ mode: "ideas", title: "Emma 2", author: "Jane Austen" });
+    expect(res.status).toBe(502);
   });
 });

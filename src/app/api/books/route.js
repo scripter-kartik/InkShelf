@@ -6,6 +6,7 @@ import {
   searchBooks,
   searchFreeBooks,
   fetchFreeBooks,
+  fetchTextbooks,
   fetchSuggestions,
   fetchWorkDetail,
 } from "@/lib/openlibrary";
@@ -15,6 +16,7 @@ const TTL_MS = {
   search: 6 * 60 * 60 * 1000,
   suggest: 6 * 60 * 60 * 1000,
   free: 24 * 60 * 60 * 1000,
+  textbooks: 24 * 60 * 60 * 1000,
 };
 const FALLBACK_TTL_MS = 2 * 60 * 1000;
 const inFlight = new Map();
@@ -55,6 +57,13 @@ function parse(searchParams, quotaUser) {
     if (topic && !/^[a-z][a-z ]*$/.test(topic)) return null;
     return { type, cacheKey: `free|${topic}|${q.toLowerCase()}|${page}`, run: async () => {
       const data = await fetchFreeBooks({ topic, search: q, page });
+      return { data, placeholder: false };
+    } };
+  }
+
+  if (type === "textbooks") {
+    return { type, cacheKey: `textbooks|${q.toLowerCase()}|${page}`, run: async () => {
+      const data = await fetchTextbooks({ search: q, page });
       return { data, placeholder: false };
     } };
   }

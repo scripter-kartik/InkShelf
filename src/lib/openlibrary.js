@@ -317,6 +317,56 @@ export async function fetchFreeBooks({ topic = "", search = "", page = 0 } = {})
         total: data.count || 0,
     };
 }
+const OTL = "https://open.umn.edu/opentextbooks/textbooks.json";
+const READ_FORMAT_ORDER = ["Online", "eBook", "PDF"];
+export function normalizeTextbook(b) {
+    const formats = (b.formats || []).filter((f) => f?.url && READ_FORMAT_ORDER.includes(f.type));
+    formats.sort((a, c) => READ_FORMAT_ORDER.indexOf(a.type) - READ_FORMAT_ORDER.indexOf(c.type));
+    const authors = (b.contributors || [])
+        .map((c) => `${c.first_name || ""} ${c.last_name || ""}`.trim())
+        .filter(Boolean);
+    return {
+        key: `OTL${b.id}`,
+        title: b.title || "Untitled",
+        authors: authors.map((name) => ({ name })),
+        author_name: authors,
+        publisher: (b.publishers || [])[0]?.name || null,
+        year: b.copyright_year || null,
+        license: b.license || null,
+        subjects: (b.subjects || []).map((x) => x.name).filter(Boolean).slice(0, 3),
+        description: (b.description || "").replace(/\s+/g, " ").trim().slice(0, 280),
+        readUrl: formats[0]?.url || b.url,
+        readFormat: formats[0]?.type || "Online",
+        infoUrl: b.url,
+        access: "public",
+    };
+}
+/**
+ * Free, openly licensed modern textbooks from the Open Textbook Library.
+ * Returns { books, hasMore, total }. `page` is 0-based.
+ */
+export async function fetchTextbooks({ search = "", page = 0 } = {}) {
+    if (IS_BROWSER) {
+        return viaApi({ type: "textbooks", ...(search ? { q: search } : {}), page });
+    }
+    const qs = new URLSearchParams({ page: String(page + 1), ...(search ? { q: search } : {}) });
+    const res = await fetch(`${OTL}?${qs}`, {
+        ...SERVER_CACHE,
+        headers: { "User-Agent": "InkShelf/1.0 (+https://ink-shelf.vercel.app)" },
+        signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) {
+        const err = new Error(`Open Textbook Library request failed (${res.status})`);
+        err.status = res.status;
+        throw err;
+    }
+    const data = await res.json();
+    return {
+        books: (data.data || []).map(normalizeTextbook).filter((b) => b.readUrl),
+        hasMore: Boolean(data.links?.next),
+        total: data.links?.total_count || 0,
+    };
+}
 /**
  * Search restricted to books that can be read in full for free: Project Gutenberg
  * (opens in the InkShelf reader) plus Google Books' free public-domain editions.
