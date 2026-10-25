@@ -1,5 +1,6 @@
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
-import { cacheGet, cacheSet } from "@/lib/store";
+import { cacheGet, cacheSet, clientIp } from "@/lib/store";
 import {
   fetchBooksByGenre,
   searchBooks,
@@ -24,7 +25,7 @@ function isPlaceholder(books = []) {
   return books.some((b) => String(b.key).startsWith("mock_"));
 }
 
-function parse(searchParams) {
+function parse(searchParams, quotaUser) {
   const type = searchParams.get("type");
   const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "12", 10) || 12, 1), 40);
 
@@ -63,21 +64,21 @@ function parse(searchParams) {
   if (type === "search") {
     if (searchParams.get("free") === "1") {
       return { type, cacheKey: `search-free|${q.toLowerCase()}|${page}`, run: async () => {
-        const data = await searchFreeBooks(q, { page });
+        const data = await searchFreeBooks(q, { page, quotaUser });
         return { data, placeholder: Boolean(data.partial) };
       } };
     }
     const sourceParam = searchParams.get("source");
     const source = SOURCES.has(sourceParam) ? sourceParam : undefined;
     return { type, cacheKey: `search|${q.toLowerCase()}|${page}|${source || ""}`, run: async () => {
-      const data = await searchBooks(q, { page, source });
-      return { data, placeholder: data.source === "mock" };
+      const data = await searchBooks(q, { page, source, quotaUser });
+      return { data, placeholder: data.source === "mock" || Boolean(data.fallback) };
     } };
   }
 
   if (type === "suggest") {
     return { type, cacheKey: `suggest|${q.toLowerCase()}|${limit}`, run: async () => {
-      const titles = await fetchSuggestions(q, limit);
+      const titles = await fetchSuggestions(q, limit, undefined, quotaUser);
       return { data: { titles }, placeholder: false };
     } };
   }
@@ -86,7 +87,8 @@ function parse(searchParams) {
 }
 
 export async function GET(request) {
-  const req = parse(new URL(request.url).searchParams);
+  const quotaUser = crypto.createHash("sha256").update(clientIp(request.headers)).digest("hex").slice(0, 32);
+  const req = parse(new URL(request.url).searchParams, quotaUser);
   if (!req) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }

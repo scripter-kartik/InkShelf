@@ -41,7 +41,7 @@ describe("/api/books", () => {
 
   it("passes search paging and source through", async () => {
     await get("type=search&q=dune&page=2&source=openlibrary");
-    expect(lib.searchBooks).toHaveBeenCalledWith("dune", { page: 2, source: "openlibrary" });
+    expect(lib.searchBooks).toHaveBeenCalledWith("dune", expect.objectContaining({ page: 2, source: "openlibrary" }));
   });
 
   it("preloads book details", async () => {
@@ -61,7 +61,21 @@ describe("/api/books", () => {
   it("routes free-only searches to the free search", async () => {
     const res = await get("type=search&q=sherlock&free=1");
     expect((await res.json()).source).toBe("free");
-    expect(lib.searchFreeBooks).toHaveBeenCalledWith("sherlock", { page: 0 });
+    expect(lib.searchFreeBooks).toHaveBeenCalledWith("sherlock", expect.objectContaining({ page: 0 }));
     expect(lib.searchBooks).not.toHaveBeenCalled();
+  });
+
+  it("identifies visitors to Google with an anonymous per-IP quota id", async () => {
+    await GET(new Request("http://test/api/books?type=search&q=quota", { headers: { "x-forwarded-for": "198.51.100.9" } }));
+    const { quotaUser } = lib.searchBooks.mock.calls[0][1];
+    expect(quotaUser).toMatch(/^[a-f0-9]{32}$/);
+    expect(quotaUser).not.toContain("198.51.100.9");
+  });
+
+  it("does not cache fallback results for long", async () => {
+    lib.searchBooks.mockResolvedValueOnce({ books: [{ key: "/works/OL1W", title: "A" }], hasMore: false, source: "openlibrary", fallback: true });
+    await get("type=search&q=flaky");
+    const entry = [...globalThis.__inkshelfStore.entries()].find(([k]) => k.includes("flaky"));
+    expect(entry[1].expires - Date.now()).toBeLessThanOrEqual(2 * 60 * 1000);
   });
 });

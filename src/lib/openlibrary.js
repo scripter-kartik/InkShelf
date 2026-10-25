@@ -74,14 +74,21 @@ export function workId(key = "") {
         .replace("/works/", "")
         .replace(/^\//, "");
 }
-async function getJson(url, signal) {
-    const res = await fetch(withKey(url), { ...SERVER_CACHE, ...(signal ? { signal } : {}) });
-    if (!res.ok) {
-        const err = new Error(`Books API request failed (${res.status}): ${url}`);
+const RETRYABLE = new Set([429, 500, 503]);
+async function getJson(url, signal, quotaUser) {
+    const target = withKey(url) + (quotaUser ? `&quotaUser=${encodeURIComponent(quotaUser)}` : "");
+    for (let attempt = 0; ; attempt++) {
+        const res = await fetch(target, { ...SERVER_CACHE, ...(signal ? { signal } : {}) });
+        if (res.ok)
+            return res.json();
+        if (attempt === 0 && RETRYABLE.has(res.status) && !IS_BROWSER) {
+            await new Promise((r) => setTimeout(r, 700));
+            continue;
+        }
+        const err = new Error(`Books API request failed (${res.status})`);
         err.status = res.status;
         throw err;
     }
-    return res.json();
 }
 async function getOlJson(path, signal) {
     const res = await fetch(`${OL_BASE}${path}`, {
@@ -215,9 +222,9 @@ export async function fetchBooksByGenre(genre, limit = 40) {
 }
 const SEARCH_PAGE_SIZE = 40;
 const OL_SEARCH_FIELDS = "key,title,author_name,cover_i,ebook_access";
-async function searchGoogle(query, page) {
+async function searchGoogle(query, page, quotaUser) {
     const startIndex = page * SEARCH_PAGE_SIZE;
-    const data = await getJson(`${BASE}/volumes?q=${encodeURIComponent(query)}&maxResults=${SEARCH_PAGE_SIZE}&startIndex=${startIndex}&langRestrict=en`);
+    const data = await getJson(`${BASE}/volumes?q=${encodeURIComponent(query)}&maxResults=${SEARCH_PAGE_SIZE}&startIndex=${startIndex}&langRestrict=en`, undefined, quotaUser);
     const items = data.items || [];
     return {
         books: deduplicateBooks(items.map(normalizeVolume)),
@@ -233,27 +240,29 @@ async function searchOpenLibrary(query, page) {
         hasMore: docs.length > 0 && (page + 1) * SEARCH_PAGE_SIZE < total,
     };
 }
-export async function searchBooks(query, { page = 0, source } = {}) {
+export async function searchBooks(query, { page = 0, source, quotaUser } = {}) {
     if (IS_BROWSER) {
         return viaApi({ type: "search", q: query, page, ...(source ? { source } : {}) });
     }
+    let googleFailed = false;
     if (!source || source === "google") {
         try {
-            const result = await searchGoogle(query, page);
+            const result = await searchGoogle(query, page, quotaUser);
             if (result.books.length > 0 || source === "google")
                 return { ...result, source: "google" };
         }
         catch (err) {
             if (source === "google")
                 throw err;
-            console.warn(`Google Books search failed for "${query}", trying Open Library.`);
+            googleFailed = true;
+            console.warn(`Google Books search failed for "${query}" (${err.status || err.message}), trying Open Library.`);
         }
     }
     if (!source || source === "openlibrary") {
         try {
             const result = await searchOpenLibrary(query, page);
             if (result.books.length > 0 || source === "openlibrary")
-                return { ...result, source: "openlibrary" };
+                return { ...result, source: "openlibrary", fallback: googleFailed };
         }
         catch (err) {
             if (source === "openlibrary")
@@ -313,7 +322,7 @@ export async function fetchFreeBooks({ topic = "", search = "", page = 0 } = {})
  * (opens in the InkShelf reader) plus Google Books' free public-domain editions.
  * Gutendex can be slow, so the two run in parallel and either may be missing.
  */
-export async function searchFreeBooks(query, { page = 0 } = {}) {
+export async function searchFreeBooks(query, { page = 0, quotaUser } = {}) {
     if (IS_BROWSER) {
         return viaApi({ type: "search", q: query, page, free: "1" });
     }
@@ -324,7 +333,7 @@ export async function searchFreeBooks(query, { page = 0 } = {}) {
             gutendex,
             new Promise((_, reject) => setTimeout(() => reject(new Error("Gutendex still loading")), FREE_SEARCH_WAIT_MS)),
         ]),
-        getJson(`${BASE}/volumes?q=${encodeURIComponent(query)}&filter=free-ebooks&maxResults=${SEARCH_PAGE_SIZE}&startIndex=${page * SEARCH_PAGE_SIZE}&langRestrict=en`),
+        getJson(`${BASE}/volumes?q=${encodeURIComponent(query)}&filter=free-ebooks&maxResults=${SEARCH_PAGE_SIZE}&startIndex=${page * SEARCH_PAGE_SIZE}&langRestrict=en`, undefined, quotaUser),
     ]);
     const gutBooks = gut.status === "fulfilled" ? gut.value.books : [];
     const googleItems = google.status === "fulfilled" ? google.value.items || [] : [];
@@ -341,12 +350,12 @@ export async function searchFreeBooks(query, { page = 0 } = {}) {
         partial: gut.status === "rejected",
     };
 }
-export async function fetchSuggestions(query, limit = 5, signal) {
+export async function fetchSuggestions(query, limit = 5, signal, quotaUser) {
     if (IS_BROWSER) {
         return (await viaApi({ type: "suggest", q: query, limit }, signal)).titles;
     }
     try {
-        const data = await getJson(`${BASE}/volumes?q=${encodeURIComponent(query)}&maxResults=${limit}`, signal);
+        const data = await getJson(`${BASE}/volumes?q=${encodeURIComponent(query)}&maxResults=${limit}`, signal, quotaUser);
         const titles = (data.items || [])
             .slice(0, limit)
             .map((item) => item.volumeInfo?.title || "")
