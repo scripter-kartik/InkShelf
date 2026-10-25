@@ -448,13 +448,19 @@ export default function Home() {
   }, [mounted]);
 
   const heroTitle = "Hi, we're InkShelf.";
-  const chars = heroTitle.split("").map((char, i) => (
-    <span
-      key={i}
-      className="char inline-block bg-gradient-to-r from-green-400 via-green-500 to-black dark:to-white bg-clip-text text-transparent"
-      style={{ display: char === " " ? "inline" : "inline-block" }}
-    >
-      {char === " " ? "\u00A0" : char}
+  const chars = heroTitle.split(" ").map((word, w, words) => (
+    <span key={w}>
+      <span className="inline-block whitespace-nowrap">
+        {word.split("").map((char, i) => (
+          <span
+            key={i}
+            className="char inline-block bg-gradient-to-r from-green-400 via-green-500 to-black dark:to-white bg-clip-text text-transparent"
+          >
+            {char}
+          </span>
+        ))}
+      </span>
+      {w < words.length - 1 ? " " : null}
     </span>
   ));
 
@@ -880,7 +886,7 @@ export default function Home() {
       <footer className="py-12 px-4 bg-gray-950 text-white dark:bg-ink-950 dark:border-t dark:border-ink-800">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <img src="/icon.png" alt="" className="w-8 h-8" />
+            <img src="/open-book.png" alt="" className="w-8 h-8" />
             <span className="font-playwrite text-xl font-bold">InkShelf</span>
           </div>
           <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-400">
