@@ -7,7 +7,7 @@ import { coverUrl, workId, isOpenLibraryId } from "@/lib/openlibrary";
 
 const preloaded = new Set();
 
-export default function BookCard({ book, readNow = false }) {
+export default function BookCard({ book }) {
   const id = workId(book.key);
   const cover = coverUrl(book.cover_id ?? book.cover_i, "M");
   const author =
@@ -76,7 +76,7 @@ export default function BookCard({ book, readNow = false }) {
       className="h-full"
     >
       <Link
-        href={`/books/${id}${readNow ? "?read=1" : ""}`}
+        href={`/books/${id}`}
         ref={cardRef}
         onMouseEnter={() => preload(150)}
         onFocus={() => preload(150)}

@@ -240,9 +240,82 @@ async function searchOpenLibrary(query, page) {
         hasMore: docs.length > 0 && (page + 1) * SEARCH_PAGE_SIZE < total,
     };
 }
+async function googleDirect(path) {
+    const res = await fetch(withKey(`${BASE}${path}`));
+    if (!res.ok) {
+        const err = new Error(`Books API request failed (${res.status})`);
+        err.status = res.status;
+        throw err;
+    }
+    return res.json();
+}
+async function searchGoogleDirect(query, page) {
+    const startIndex = page * SEARCH_PAGE_SIZE;
+    const data = await googleDirect(`/volumes?q=${encodeURIComponent(query)}&maxResults=${SEARCH_PAGE_SIZE}&startIndex=${startIndex}&langRestrict=en`);
+    const items = data.items || [];
+    return {
+        books: deduplicateBooks(items.map(normalizeVolume)),
+        hasMore: items.length > 0 && startIndex + items.length < (data.totalItems || 0),
+        source: "google",
+    };
+}
+function normalizeForMatch(s = "") {
+    return s
+        .toLowerCase()
+        .split(/[:;(]/)[0]
+        .replace(/&/g, "and")
+        .replace(/[^a-z0-9 ]/g, " ")
+        .replace(/^\s*(the|a|an)\s+/, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+/**
+ * Finds a Google Books edition of this title that can be read in the embedded viewer
+ * (a preview, or the full text for public-domain editions). Runs in the visitor's
+ * browser so it isn't affected by Google throttling shared server IPs.
+ * Returns { id, viewability } or null.
+ */
+export async function findGooglePreview(title, author) {
+    const want = normalizeForMatch(title);
+    if (!want) return null;
+    const last = (author || "").toLowerCase().replace(/[^a-z ]/g, " ").trim().split(/\s+/).pop();
+    const cleanTitle = title.split(/[:;(]/)[0].trim();
+    const cleanAuthor = author && !/^unknown/i.test(author) ? author : "";
+    const data = await googleDirect(`/volumes?q=${encodeURIComponent(`${cleanTitle} ${cleanAuthor}`.trim())}&printType=books&maxResults=40`);
+    const candidates = (data.items || []).filter((item) => {
+        const info = item.volumeInfo || {};
+        const access = item.accessInfo || {};
+        const t = normalizeForMatch(info.title);
+        const titleOk = t === want || t.startsWith(`${want} `) || want.startsWith(`${t} `);
+        const authorOk = !last || last === "unknown" || (info.authors || []).some((a) => a.toLowerCase().includes(last));
+        return titleOk && authorOk && access.embeddable === true && access.viewability !== "NO_PAGES";
+    });
+    const best =
+        candidates.find((i) => i.accessInfo.viewability === "ALL_PAGES") ||
+        candidates.find((i) => (i.volumeInfo.language || "en") === "en") ||
+        candidates[0];
+    return best ? { id: best.id, viewability: best.accessInfo.viewability } : null;
+}
 export async function searchBooks(query, { page = 0, source, quotaUser } = {}) {
     if (IS_BROWSER) {
-        return viaApi({ type: "search", q: query, page, ...(source ? { source } : {}) });
+        if (source === "google") {
+            try {
+                return await viaApi({ type: "search", q: query, page, source });
+            }
+            catch {
+                return searchGoogleDirect(query, page);
+            }
+        }
+        const result = await viaApi({ type: "search", q: query, page, ...(source ? { source } : {}) });
+        if (!source && result.source !== "google") {
+            try {
+                const direct = await searchGoogleDirect(query, page);
+                if (direct.books.length > 0)
+                    return direct;
+            }
+            catch { }
+        }
+        return result;
     }
     let googleFailed = false;
     if (!source || source === "google") {
@@ -302,10 +375,7 @@ function readableGutenberg(b) {
  * Free, fully readable classics from Project Gutenberg (via Gutendex), most popular first.
  * Returns { books, hasMore, total }. `page` is 0-based.
  */
-export async function fetchFreeBooks({ topic = "", search = "", page = 0 } = {}) {
-    if (IS_BROWSER) {
-        return viaApi({ type: "free", ...(topic ? { topic } : {}), ...(search ? { q: search } : {}), page });
-    }
+async function fetchFreeBooks({ topic = "", search = "", page = 0 } = {}) {
     const data = await getGutendex({
         ...(topic ? { topic } : {}),
         ...(search ? { search } : {}),
@@ -315,56 +385,6 @@ export async function fetchFreeBooks({ topic = "", search = "", page = 0 } = {})
         books: deduplicateBooks((data.results || []).filter(readableGutenberg).map(normalizeGutenberg)),
         hasMore: Boolean(data.next),
         total: data.count || 0,
-    };
-}
-const OTL = "https://open.umn.edu/opentextbooks/textbooks.json";
-const READ_FORMAT_ORDER = ["Online", "eBook", "PDF"];
-export function normalizeTextbook(b) {
-    const formats = (b.formats || []).filter((f) => f?.url && READ_FORMAT_ORDER.includes(f.type));
-    formats.sort((a, c) => READ_FORMAT_ORDER.indexOf(a.type) - READ_FORMAT_ORDER.indexOf(c.type));
-    const authors = (b.contributors || [])
-        .map((c) => `${c.first_name || ""} ${c.last_name || ""}`.trim())
-        .filter(Boolean);
-    return {
-        key: `OTL${b.id}`,
-        title: b.title || "Untitled",
-        authors: authors.map((name) => ({ name })),
-        author_name: authors,
-        publisher: (b.publishers || [])[0]?.name || null,
-        year: b.copyright_year || null,
-        license: b.license || null,
-        subjects: (b.subjects || []).map((x) => x.name).filter(Boolean).slice(0, 3),
-        description: (b.description || "").replace(/\s+/g, " ").trim().slice(0, 280),
-        readUrl: formats[0]?.url || b.url,
-        readFormat: formats[0]?.type || "Online",
-        infoUrl: b.url,
-        access: "public",
-    };
-}
-/**
- * Free, openly licensed modern textbooks from the Open Textbook Library.
- * Returns { books, hasMore, total }. `page` is 0-based.
- */
-export async function fetchTextbooks({ search = "", page = 0 } = {}) {
-    if (IS_BROWSER) {
-        return viaApi({ type: "textbooks", ...(search ? { q: search } : {}), page });
-    }
-    const qs = new URLSearchParams({ page: String(page + 1), ...(search ? { q: search } : {}) });
-    const res = await fetch(`${OTL}?${qs}`, {
-        ...SERVER_CACHE,
-        headers: { "User-Agent": "InkShelf/1.0 (+https://ink-shelf.vercel.app)" },
-        signal: AbortSignal.timeout(30000),
-    });
-    if (!res.ok) {
-        const err = new Error(`Open Textbook Library request failed (${res.status})`);
-        err.status = res.status;
-        throw err;
-    }
-    const data = await res.json();
-    return {
-        books: (data.data || []).map(normalizeTextbook).filter((b) => b.readUrl),
-        hasMore: Boolean(data.links?.next),
-        total: data.links?.total_count || 0,
     };
 }
 /**

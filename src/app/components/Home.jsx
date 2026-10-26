@@ -564,7 +564,7 @@ export default function Home() {
             transition={{ delay: 1.8, duration: 0.55 }}
             className="flex flex-col sm:flex-row gap-4"
           >
-            <Link href="/free">
+            <Link href="/books">
               <motion.button
                 whileHover={{ scale: 1.08, boxShadow: "0 16px 48px rgba(74,222,128,0.5)" }}
                 whileTap={{ scale: 0.96 }}
@@ -859,7 +859,7 @@ export default function Home() {
             Millions of books waiting. Zero cost. Join InkShelf and start your reading journey today.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/free">
+            <Link href="/books">
               <motion.button
                 whileHover={{ scale: 1.07, boxShadow: "0 12px 40px rgba(0,0,0,0.2)" }}
                 whileTap={{ scale: 0.97 }}
@@ -891,7 +891,6 @@ export default function Home() {
           </div>
           <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-400">
             <Link href="/books" className="hover:text-white transition-colors">Browse</Link>
-            <Link href="/free" className="hover:text-white transition-colors">Free Library</Link>
             <Link href="/shelf" className="hover:text-white transition-colors">My Shelf</Link>
             <Link href="/favorites" className="hover:text-white transition-colors">Favorites</Link>
             <Link href="/profile" className="hover:text-white transition-colors">Profile</Link>

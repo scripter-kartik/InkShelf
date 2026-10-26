@@ -3,7 +3,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import Link from "next/link";
 import Navbar from "../../components/Navbar";
 import BookCard from "@/components/BookCard";
 import { fetchBooksByCategories } from "@/lib/openlibrary";
@@ -165,21 +164,6 @@ export default function BooksPage() {
         <p className="text-sm text-gray-500 dark:text-ink-400 mt-1 font-lato">
           Discover your next great read by category
         </p>
-        <Link
-          href="/free"
-          className="mt-4 flex items-center gap-3 rounded-2xl border border-green-500/30 bg-green-50 px-4 py-3 transition-colors hover:border-green-500 dark:bg-green-950/20"
-        >
-          <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-green-500 text-black">
-            <BookOpen className="h-5 w-5" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-bold text-gray-900 dark:text-white">Want to start reading right now?</span>
-            <span className="block text-xs text-gray-600 dark:text-ink-300">
-              The Free Library has 75,000+ classics you can read in full — every one opens instantly.
-            </span>
-          </span>
-          <span className="ml-auto whitespace-nowrap text-sm font-semibold text-green-700 dark:text-green-400">Open →</span>
-        </Link>
       </div>
 
       <div className="px-3 md:px-6 py-4 space-y-10 max-w-[1600px] mx-auto relative z-10">

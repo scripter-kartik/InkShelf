@@ -5,8 +5,6 @@ import {
   fetchBooksByGenre,
   searchBooks,
   searchFreeBooks,
-  fetchFreeBooks,
-  fetchTextbooks,
   fetchSuggestions,
   fetchWorkDetail,
 } from "@/lib/openlibrary";
@@ -15,8 +13,6 @@ const TTL_MS = {
   subject: 12 * 60 * 60 * 1000,
   search: 6 * 60 * 60 * 1000,
   suggest: 6 * 60 * 60 * 1000,
-  free: 24 * 60 * 60 * 1000,
-  textbooks: 24 * 60 * 60 * 1000,
 };
 const FALLBACK_TTL_MS = 2 * 60 * 1000;
 const inFlight = new Map();
@@ -51,22 +47,6 @@ function parse(searchParams, quotaUser) {
 
   const q = (searchParams.get("q") || "").trim().slice(0, 200);
   const page = Math.min(Math.max(parseInt(searchParams.get("page") || "0", 10) || 0, 0), 200);
-
-  if (type === "free") {
-    const topic = (searchParams.get("topic") || "").toLowerCase().trim().slice(0, 40);
-    if (topic && !/^[a-z][a-z ]*$/.test(topic)) return null;
-    return { type, cacheKey: `free|${topic}|${q.toLowerCase()}|${page}`, run: async () => {
-      const data = await fetchFreeBooks({ topic, search: q, page });
-      return { data, placeholder: false };
-    } };
-  }
-
-  if (type === "textbooks") {
-    return { type, cacheKey: `textbooks|${q.toLowerCase()}|${page}`, run: async () => {
-      const data = await fetchTextbooks({ search: q, page });
-      return { data, placeholder: false };
-    } };
-  }
 
   if (!q) return null;
 

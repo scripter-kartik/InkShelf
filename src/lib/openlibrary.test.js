@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { coverUrl, workId, parseDescription, gutenbergAuthorName, normalizeGutenberg, isGutenbergId, normalizeTextbook } from "@/lib/openlibrary";
+import { coverUrl, workId, parseDescription, gutenbergAuthorName, normalizeGutenberg, isGutenbergId } from "@/lib/openlibrary";
 describe("coverUrl", () => {
     it("returns a Google Books https URL unchanged (after http→https upgrade)", () => {
         const input = "http://books.google.com/books/content?id=abc&printsec=frontcover";
@@ -97,31 +97,5 @@ describe("Project Gutenberg helpers", () => {
         expect(isGutenbergId("PG1342")).toBe(true);
         expect(isGutenbergId("OL27482W")).toBe(false);
         expect(isGutenbergId("zyTCAlFPjgYC")).toBe(false);
-    });
-});
-describe("Open Textbook Library", () => {
-    it("picks a free online reading link and skips paid hardcopies", () => {
-        const book = normalizeTextbook({
-            id: 75,
-            title: "Research Methods in Psychology",
-            copyright_year: 2019,
-            license: "Attribution",
-            contributors: [{ first_name: "Carrie", last_name: "Cuttler" }],
-            publishers: [{ name: "Kwantlen Polytechnic University" }],
-            subjects: [{ name: "Psychology" }],
-            url: "https://open.umn.edu/opentextbooks/textbooks/x",
-            formats: [
-                { type: "Hardcopy", url: "https://www.amazon.com/dp/1" },
-                { type: "PDF", url: "https://example.org/book.pdf" },
-                { type: "Online", url: "https://kpu.pressbooks.pub/psychmethods4e/" },
-            ],
-        });
-        expect(book).toMatchObject({
-            key: "OTL75",
-            author_name: ["Carrie Cuttler"],
-            readUrl: "https://kpu.pressbooks.pub/psychmethods4e/",
-            readFormat: "Online",
-            access: "public",
-        });
     });
 });

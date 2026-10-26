@@ -11,7 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import ShelfControls from "@/components/ShelfControls";
 import KeyIdeas from "@/components/KeyIdeas";
 import AudiobookPlayer from "@/components/AudiobookPlayer";
-import { coverUrl, isOpenLibraryId } from "@/lib/openlibrary";
+import { coverUrl, isOpenLibraryId, findGooglePreview } from "@/lib/openlibrary";
 
 const EpubReaderComponent = dynamic(() => import("@/components/EpubReaderComponent"), { ssr: false });
 
@@ -35,6 +35,8 @@ export default function BookDetailClient({ book, cover }) {
   const [epubUrl, setEpubUrl] = useState(null);
   const [gutenbergUrl, setGutenbergUrl] = useState(null);
   const [sources, setSources] = useState({ epubSource: null, access: null, borrowUrl: null, openLibraryUrl: null });
+  const [googlePreview, setGooglePreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleEpubUpload = (e) => {
@@ -108,18 +110,37 @@ export default function BookDetailClient({ book, cover }) {
   };
 
   const finalEpubUrl = epubUrl || gutenbergUrl;
-  const canEmbed = localBook?.embeddable === true || !!iaId || !!gutenbergUrl;
+  const ownPreview = localBook?.embeddable === true;
+  const previewId = ownPreview ? localBook.id : googlePreview?.id || null;
+  const previewFull = ownPreview ? localBook?.viewability === "ALL_PAGES" : googlePreview?.viewability === "ALL_PAGES";
+  const canEmbed = !!previewId || !!iaId || !!gutenbergUrl;
   const isOpenLibraryBook = localBook?.source === "openlibrary";
   const isGutenbergBook = localBook?.source === "gutenberg";
   const canSummarize = localBook?.source !== "mock" && localBook?.title !== "Fallback Offline Book";
   const externalUrl = isOpenLibraryBook || isGutenbergBook
     ? localBook.readUrl
     : localBook.webReaderLink || localBook.readUrl || `https://books.google.com/books?id=${localBook.id}`;
-  const readDisabled = iaLoading && !canEmbed && !finalEpubUrl;
-  const isLimitedPreview =
-    !finalEpubUrl && !iaId && localBook?.embeddable === true && localBook?.viewability !== "ALL_PAGES";
-  const fullyReadable = Boolean(finalEpubUrl || iaId || (localBook?.embeddable && localBook?.viewability === "ALL_PAGES"));
-  const showLibraryOptions = !iaLoading && !fullyReadable && canSummarize;
+  const readDisabled = (iaLoading || previewLoading) && !canEmbed && !finalEpubUrl;
+  const isLimitedPreview = !finalEpubUrl && !iaId && !!previewId && !previewFull;
+  const fullyReadable = Boolean(finalEpubUrl || iaId || (previewId && previewFull));
+  const showLibraryOptions = !iaLoading && !previewLoading && !fullyReadable && canSummarize;
+
+  useEffect(() => {
+    if (iaLoading || finalEpubUrl || iaId || ownPreview || !canSummarize || !localBook?.title) return;
+    let cancelled = false;
+    setPreviewLoading(true);
+    findGooglePreview(localBook.title, localBook.author)
+      .then((found) => {
+        if (!cancelled) setGooglePreview(found);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [iaLoading, finalEpubUrl, iaId, ownPreview, canSummarize, localBook?.title, localBook?.author]);
 
   const wantsReadRef = useRef(null);
   if (wantsReadRef.current === null && typeof window !== "undefined") {
@@ -137,8 +158,8 @@ export default function BookDetailClient({ book, cover }) {
     ? `Full book free${sources.epubSource === "standardebooks" ? " · Standard Ebooks" : " · Project Gutenberg"}`
     : iaId
     ? "Full book free · Internet Archive"
-    : localBook?.embeddable === true
-    ? localBook.viewability === "ALL_PAGES"
+    : previewId
+    ? previewFull
       ? "Full book free · Google Books"
       : "Preview available · Google Books"
     : sources.borrowUrl
@@ -146,9 +167,9 @@ export default function BookDetailClient({ book, cover }) {
     : "Borrow with a library card";
   const embedUrl = iaId 
     ? `https://archive.org/embed/${iaId}?ui=embed` 
-    : (localBook?.embeddable === true 
-        ? `https://books.google.com/books?id=${localBook.id}&lpg=PP1&pg=PP1&output=embed` 
-        : null);
+    : previewId
+      ? `https://books.google.com/books?id=${previewId}&lpg=PP1&pg=PP1&output=embed`
+      : null;
 
   useEffect(() => {
     if (book.title === "Fallback Offline Book") {
@@ -296,7 +317,7 @@ export default function BookDetailClient({ book, cover }) {
                 : iaLoading
                 ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                 : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"}`}>
-                {iaLoading ? (
+                {(iaLoading || previewLoading) && !canEmbed ? (
                   <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Checking availability...</>
                 ) : canEmbed || sources.borrowUrl ? (
                   <><Eye className="w-3.5 h-3.5" /> {availabilityLabel}</>
